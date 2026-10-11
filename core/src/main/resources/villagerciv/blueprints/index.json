@@ -1,0 +1,26 @@
+{
+	"blueprints": [
+		"hut",
+		"cottage",
+		"birch_cabin",
+		"stone_croft",
+		"longhouse",
+		"timber_house",
+		"tower_house",
+		"brick_house",
+		"mossy_lodge",
+		"weavers_house",
+		"manor",
+		"deepslate_hall",
+		"storehouse",
+		"great_store_0",
+		"great_store_1",
+		"great_store_2",
+		"great_store_3",
+		"smithy",
+		"masons_yard",
+		"market",
+		"palisade_gate",
+		"watchtower"
+	]
+}

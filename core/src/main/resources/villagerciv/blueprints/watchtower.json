@@ -1,0 +1,83 @@
+{
+	"id": "watchtower",
+	"name": "Watchtower",
+	"category": "defense",
+	"cost": { "wood": 110, "stone": 40 },
+	"late": "l",
+	"palette": {
+		"C": "minecraft:cobblestone",
+		"S": "minecraft:stone_bricks",
+		"L": "minecraft:spruce_log[axis=y]",
+		"T": "minecraft:stripped_spruce_log[axis=y]",
+		"P": "minecraft:spruce_planks",
+		"F": "minecraft:spruce_fence",
+		"s": "minecraft:dark_oak_slab[type=bottom]",
+		"t": "minecraft:dark_oak_slab[type=top]",
+		"l": "minecraft:lantern[hanging=false]"
+	},
+	"layers": [
+		[
+			"CCCCC",
+			"CCCCC",
+			"CCCCC",
+			"CCCCC",
+			"CCCCC"
+		],
+		[
+			"LSSSL",
+			"S...S",
+			"S...S",
+			"S...S",
+			"LSSSL"
+		],
+		[
+			"LTTTL",
+			"T...T",
+			"T...T",
+			"T...T",
+			"LTTTL"
+		],
+		[
+			"LTTTL",
+			"T...T",
+			"T...T",
+			"T...T",
+			"LTTTL"
+		],
+		[
+			"LTTTL",
+			"T...T",
+			"T...T",
+			"T...T",
+			"LTTTL"
+		],
+		[
+			"PPPPP",
+			"PPPPP",
+			"PPPPP",
+			"PPPPP",
+			"PPPPP"
+		],
+		[
+			"LFFFL",
+			"F...F",
+			"F.l.F",
+			"F...F",
+			"LFFFL"
+		],
+		[
+			"L...L",
+			".....",
+			".....",
+			".....",
+			"L...L"
+		],
+		[
+			"ttttt",
+			"ttttt",
+			"ttstt",
+			"ttttt",
+			"ttttt"
+		]
+	]
+}

@@ -1,0 +1,504 @@
+package com.sunnatbek.villagerciv.mod;
+
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.sunnatbek.villagerciv.build.Blueprint;
+import com.sunnatbek.villagerciv.build.BlueprintLibrary;
+import com.sunnatbek.villagerciv.build.Building;
+import com.sunnatbek.villagerciv.build.ConstructionPlan;
+import com.sunnatbek.villagerciv.build.Street;
+import com.sunnatbek.villagerciv.sim.Settlement;
+import net.minecraft.commands.arguments.blocks.BlockStateParser;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.levelgen.Heightmap;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * Puts buildings into the world, one construction step at a time. The same code serves a builder
+ * laying a block while the player watches and the catch-up that brings the world up to date with
+ * work done while nobody was near.
+ *
+ * <p>Every step looks at what is actually there first. A step that is already satisfied changes
+ * nothing, so going over a building again (after a restart, or to repair it) is harmless. And a
+ * step never overwrites something that was put there by someone else: the settlement builds on
+ * natural ground and replaces only its own blocks.
+ */
+public final class BuildSites {
+	/** How high above a lot's level the ground is cut away, and how deep below it a hollow is filled. */
+	private static final int LOT_CUT = 10;
+	private static final int LOT_FILL = 16;
+	/** How far along the wall line, and how far to either side of it, the ground is looked at for a wall's level. */
+	private static final int WALL_LOOK_ALONG = 6;
+	private static final int WALL_LOOK_BESIDE = 2;
+	private static final int WALL_MAX_RAISE = 8;
+	private static final int WALL_FOOTING_DEPTH = 16;
+	private static final Rotation[] ROTATIONS = {
+			Rotation.NONE, Rotation.CLOCKWISE_90, Rotation.CLOCKWISE_180, Rotation.COUNTERCLOCKWISE_90
+	};
+
+	/** What happened when a step was carried out. */
+	public enum Outcome {
+		/** The world was changed. */
+		CHANGED,
+		/** Nothing to do: the step was already satisfied, or it is not ours to touch. */
+		SKIPPED,
+		/** The chunk is not loaded, or the design is unknown: try again later. */
+		NOT_NOW
+	}
+
+	/** A building's steps, with what is needed to carry them out. */
+	private record Plan(String blueprint, List<ConstructionPlan.Step> steps, int firstBlockStep, Set<Block> ownBlocks) {
+	}
+
+	private final BlueprintLibrary library;
+	private final Map<String, BlockState> states = new HashMap<>();
+	private final Map<Building, Plan> plans = new IdentityHashMap<>();
+	private final Set<Building> wallsLookedAt = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+
+	BuildSites(BlueprintLibrary library) {
+		this.library = library;
+	}
+
+	/** Checks every palette entry of every blueprint once, so a typo shows up at load, not mid-wall. */
+	void validateBlueprints() {
+		for (Blueprint blueprint : library.all()) {
+			for (String state : blueprint.palette().values()) {
+				if (state(state) == null) {
+					VillagerCivMod.LOGGER.error("Blueprint '{}' uses an unknown block state: {}", blueprint.id(), state);
+				}
+			}
+		}
+	}
+
+	private BlockState state(String text) {
+		return states.computeIfAbsent(text, key -> {
+			try {
+				return BlockStateParser.parseForBlock(BuiltInRegistries.BLOCK, key, false).blockState();
+			} catch (CommandSyntaxException e) {
+				return null;
+			}
+		});
+	}
+
+	private Plan plan(Settlement settlement, Building building) {
+		Plan plan = plans.get(building);
+		// A building that was enlarged is of another design now, and needs its steps drawn up again.
+		if (plan == null || !plan.blueprint().equals(building.blueprint())) {
+			Blueprint blueprint = library.get(building.blueprint()).orElse(null);
+			if (blueprint == null) {
+				return null; // a design that no longer exists: the building is kept, but not touched
+			}
+			Street street = building.street() >= 0 && building.street() < settlement.streets().size()
+					? settlement.streets().get(building.street()) : null;
+			List<ConstructionPlan.Step> steps = ConstructionPlan.of(building, blueprint, street);
+			int firstBlock = steps.size();
+			for (int i = 0; i < steps.size(); i++) {
+				if (steps.get(i).kind() == ConstructionPlan.Kind.PLACE) {
+					firstBlock = i;
+					break;
+				}
+			}
+			Set<Block> own = new HashSet<>();
+			for (String text : blueprint.palette().values()) {
+				BlockState state = state(text);
+				if (state != null) {
+					own.add(state.getBlock());
+				}
+			}
+			plan = new Plan(blueprint.id(), steps, firstBlock, own);
+			plans.put(building, plan);
+			if (building.design() != blueprint.fingerprint()) {
+				// The design has changed since this was built (more chests in the storehouse,
+				// say), or it was built before designs were kept track of. A finished building is
+				// gone over again, which adds what is new and nothing else.
+				boolean finished = building.stage() == Building.Stage.COMPLETE;
+				building.redesigned(steps.size());
+				building.setDesign(blueprint.fingerprint());
+				if (finished) {
+					repair(settlement, building);
+				}
+			}
+		}
+		return plan;
+	}
+
+	/**
+	 * Where a citizen spends the night: the floor at the foot of its own bed, inside its home.
+	 * Null if there is no such place yet (the building is unfinished, unloaded, or of a design
+	 * that no longer exists).
+	 */
+	public BlockPos bedsideOf(Settlement settlement, int home, int bed) {
+		return bedCell(settlement, home, bed, 2);
+	}
+
+	/** The head block of a citizen's bed, or null under the same conditions as {@link #bedsideOf}. */
+	public BlockPos bedHeadOf(Settlement settlement, int home, int bed) {
+		return bedCell(settlement, home, bed, 0);
+	}
+
+	/** A cell in line with a bed: {@code towardsFoot} cells from its head, away from the back wall. */
+	private BlockPos bedCell(Settlement settlement, int home, int bed, int towardsFoot) {
+		Building building = settlement.building(home);
+		if (building == null || building.y() == Building.Y_UNKNOWN || building.applied() < building.totalSteps()) {
+			return null;
+		}
+		Blueprint blueprint = library.get(building.blueprint()).orElse(null);
+		if (blueprint == null) {
+			return null;
+		}
+		List<Blueprint.Cell> heads = blueprint.bedHeads();
+		if (bed < 0 || bed >= heads.size()) {
+			return null;
+		}
+		// Beds lie head to the back wall, foot towards the door: two cells on from the head is the
+		// free floor at the bed's foot.
+		Blueprint.Cell head = heads.get(bed);
+		int standZ = Math.min(blueprint.depth() - 1, head.z() + towardsFoot);
+		return new BlockPos(building.x() + ConstructionPlan.rotatedX(blueprint, building.rotation(), head.x(), standZ),
+				building.y() + head.y(),
+				building.z() + ConstructionPlan.rotatedZ(blueprint, building.rotation(), head.x(), standZ));
+	}
+
+	/** Brings a building that was built from an older version of its design up to date. */
+	void checkDesign(Settlement settlement, Building building) {
+		plan(settlement, building);
+	}
+
+	/**
+	 * The chest that goes with a citizen's bed: the one nearest to it in its home. Null if the
+	 * home has none (not every design has the room), or it is not standing there right now.
+	 */
+	public BlockPos chestOf(ServerLevel level, Settlement settlement, int home, int bed) {
+		Building building = settlement.building(home);
+		if (building == null || building.y() == Building.Y_UNKNOWN || building.stage() != Building.Stage.COMPLETE) {
+			return null;
+		}
+		Blueprint blueprint = library.get(building.blueprint()).orElse(null);
+		if (blueprint == null) {
+			return null;
+		}
+		List<Blueprint.Cell> heads = blueprint.bedHeads();
+		if (bed < 0 || bed >= heads.size()) {
+			return null;
+		}
+		Blueprint.Cell head = heads.get(bed);
+		Blueprint.Cell nearest = null;
+		int nearestDistance = Integer.MAX_VALUE;
+		for (Blueprint.Cell chest : blueprint.chests()) {
+			int distance = Math.abs(chest.x() - head.x()) + Math.abs(chest.z() - head.z()) + Math.abs(chest.y() - head.y());
+			if (distance < nearestDistance) {
+				nearest = chest;
+				nearestDistance = distance;
+			}
+		}
+		if (nearest == null) {
+			return null;
+		}
+		BlockPos pos = new BlockPos(building.x() + ConstructionPlan.rotatedX(blueprint, building.rotation(), nearest.x(), nearest.z()),
+				building.y() + nearest.y(),
+				building.z() + ConstructionPlan.rotatedZ(blueprint, building.rotation(), nearest.x(), nearest.z()));
+		return level.hasChunkAt(pos) && level.getBlockState(pos).is(Blocks.CHEST) ? pos : null;
+	}
+
+	/** The chests of the settlement's main storehouse that stand in the world right now, section by section. */
+	List<Warehouse.StoreChest> storeChests(ServerLevel level, Settlement settlement) {
+		Building store = settlement.mainStore();
+		Blueprint blueprint = store == null || store.y() == Building.Y_UNKNOWN || !isLoaded(level, store)
+				? null : library.get(store.blueprint()).orElse(null);
+		if (blueprint == null) {
+			return List.of();
+		}
+		List<Warehouse.StoreChest> chests = new java.util.ArrayList<>();
+		for (Blueprint.StoreCell cell : blueprint.storeCells()) {
+			BlockPos pos = new BlockPos(
+					store.x() + ConstructionPlan.rotatedX(blueprint, store.rotation(), cell.cell().x(), cell.cell().z()),
+					store.y() + cell.cell().y(),
+					store.z() + ConstructionPlan.rotatedZ(blueprint, store.rotation(), cell.cell().x(), cell.cell().z()));
+			if (level.getBlockState(pos).is(Blocks.CHEST)) {
+				chests.add(new Warehouse.StoreChest(pos, cell.commodity()));
+			}
+		}
+		return chests;
+	}
+
+	/**
+	 * Where goods are brought: into the main storehouse if it stands, and to the Town Center
+	 * otherwise.
+	 */
+	public BlockPos deliveryPoint(ServerLevel level, Settlement settlement) {
+		List<Warehouse.StoreChest> chests = storeChests(level, settlement);
+		return chests.isEmpty() ? new BlockPos(settlement.anchorX(), settlement.anchorY(), settlement.anchorZ())
+				: chests.get(chests.size() / 2).pos();
+	}
+
+	/**
+	 * Where the work is done in a workshop: the block worked at (the anvil, the stonecutter).
+	 * The worker stands on the floor just in front of it, on the side the door is on. Null if
+	 * the workshop is not standing in loaded ground.
+	 */
+	public BlockPos[] workBench(ServerLevel level, Settlement settlement, Building workshop, String blockState) {
+		Blueprint blueprint = workshop.y() == Building.Y_UNKNOWN || workshop.stage() != Building.Stage.COMPLETE || !isLoaded(level, workshop)
+				? null : library.get(workshop.blueprint()).orElse(null);
+		Blueprint.Cell bench = blueprint == null ? null : blueprint.cellOf(blockState);
+		if (bench == null) {
+			return null;
+		}
+		return new BlockPos[] {cellPos(workshop, blueprint, bench.x(), bench.y(), bench.z()),
+				cellPos(workshop, blueprint, bench.x(), bench.y(), Math.min(blueprint.depth() - 1, bench.z() + 1))};
+	}
+
+	private static BlockPos cellPos(Building building, Blueprint blueprint, int x, int y, int z) {
+		return new BlockPos(building.x() + ConstructionPlan.rotatedX(blueprint, building.rotation(), x, z), building.y() + y,
+				building.z() + ConstructionPlan.rotatedZ(blueprint, building.rotation(), x, z));
+	}
+
+	/** Where a builder stands: on the verge in front of the building, where a block can never wall it in. */
+	public BlockPos standPoint(ServerLevel level, Building building) {
+		int x = building.x() + building.sizeX() / 2;
+		int z = building.z() + building.sizeZ() / 2;
+		// A wall faces outwards, and its builders stay on the inside of it.
+		int facing = building.category() == Blueprint.Category.DEFENSE ? building.rotation() + 2 : building.rotation();
+		switch (facing & 3) {
+			case 0 -> z = building.z() + building.sizeZ() + 1;
+			case 1 -> x = building.x() - 2;
+			case 2 -> z = building.z() - 2;
+			default -> x = building.x() + building.sizeX() + 1;
+		}
+		return new BlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
+	}
+
+	public boolean isLoaded(ServerLevel level, Building building) {
+		return level.hasChunk(building.x() >> 4, building.z() >> 4)
+				&& level.hasChunk((building.x() + building.sizeX() - 1) >> 4, (building.z() + building.sizeZ() - 1) >> 4);
+	}
+
+	/**
+	 * Carries out the building's next unapplied step and moves its cursor past it.
+	 *
+	 * @return what happened; after {@link Outcome#NOT_NOW} the cursor has not moved
+	 */
+	public Outcome applyNext(ServerLevel level, Settlement settlement, Building building) {
+		Plan plan = plan(settlement, building);
+		if (plan == null || !isLoaded(level, building)) {
+			return Outcome.NOT_NOW;
+		}
+		if (building.applied() >= plan.steps().size()) {
+			return Outcome.SKIPPED;
+		}
+		if (building.y() == Building.Y_UNKNOWN) {
+			// The lot's level is that of its middle; the footprint is brought to it before building.
+			building.setY(isWallRun(building) ? wallLevel(level, building)
+					: level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+							building.x() + building.sizeX() / 2, building.z() + building.sizeZ() / 2) - 1);
+		}
+		ConstructionPlan.Step step = plan.steps().get(building.applied());
+		Outcome outcome = switch (step.kind()) {
+			case PAVE -> pave(level, step);
+			case LEVEL -> level(level, building, new BlockPos(step.x(), building.y(), step.z()));
+			case PLACE -> place(level, building, plan, step);
+		};
+		if (outcome != Outcome.NOT_NOW) {
+			building.stepApplied();
+			if (building.stage() == Building.Stage.UNDER_REPAIR && building.applied() >= plan.steps().size()) {
+				building.setStage(Building.Stage.COMPLETE);
+			}
+		}
+		return outcome;
+	}
+
+	/** A stretch of palisade, as opposed to a gate or a tower: those stand where people walk, on the ground as it is. */
+	private static boolean isWallRun(Building building) {
+		return building.category() == Blueprint.Category.DEFENSE && building.blueprint().startsWith("palisade_")
+				&& Character.isDigit(building.blueprint().charAt(building.blueprint().length() - 1));
+	}
+
+	/**
+	 * The level a stretch of wall is built from. Not the ground under its own middle: a wall that
+	 * dipped into every pit it crossed would be a wall with a way over it. It is the highest
+	 * natural ground found close beside the wall line, over the stretch itself and a little way
+	 * past both its ends, so the top runs on across a hollow and the footing fills what is below.
+	 */
+	private static int wallLevel(ServerLevel level, Building building) {
+		boolean alongX = building.sizeX() >= building.sizeZ();
+		int length = alongX ? building.sizeX() : building.sizeZ();
+		int own = groundLevel(level, building.x() + building.sizeX() / 2, building.z() + building.sizeZ() / 2);
+		int highest = own;
+		for (int along = -WALL_LOOK_ALONG; along < length + WALL_LOOK_ALONG; along++) {
+			for (int beside = -WALL_LOOK_BESIDE; beside <= WALL_LOOK_BESIDE; beside += 2 * WALL_LOOK_BESIDE) {
+				int x = alongX ? building.x() + along : building.x() + beside;
+				int z = alongX ? building.z() + beside : building.z() + along;
+				if (level.hasChunk(x >> 4, z >> 4)) {
+					highest = Math.max(highest, groundLevel(level, x, z));
+				}
+			}
+		}
+		// Up to a point: against a cliff the wall keeps to its own ground rather than climbing it.
+		return Math.min(highest, own + WALL_MAX_RAISE);
+	}
+
+	/** Height of the natural ground in a column, looking down past whatever has been built or grown on it. */
+	private static int groundLevel(ServerLevel level, int x, int z) {
+		int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
+		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos(x, y, z);
+		for (int down = 0; down < 12 && !WorkSites.isGround(level.getBlockState(cursor)); down++) {
+			cursor.move(0, -1, 0);
+		}
+		return cursor.getY();
+	}
+
+	/**
+	 * A finished stretch of wall that was built down in a hollow is raised to the level it should
+	 * have had: built again from higher up, on top of what stands, which becomes its footing.
+	 * Looked at once for each stretch in a session.
+	 */
+	void raiseSunkenWall(ServerLevel level, Settlement settlement, Building building) {
+		if (!isWallRun(building) || building.stage() != Building.Stage.COMPLETE || building.y() == Building.Y_UNKNOWN
+				|| !wallsLookedAt.add(building) || !isLoaded(level, building)) {
+			if (isWallRun(building) && building.stage() == Building.Stage.COMPLETE && !isLoaded(level, building)) {
+				wallsLookedAt.remove(building); // not seen yet: look when it is
+			}
+			return;
+		}
+		int target = wallLevel(level, building);
+		if (target - building.y() >= 2 && plan(settlement, building) != null) {
+			building.setY(target);
+			building.setCursors(building.progress(), 0);
+			building.setStage(Building.Stage.UNDER_REPAIR);
+		}
+	}
+
+	/** A street follows the land: each cell becomes path where it lies. */
+	private static Outcome pave(ServerLevel level, ConstructionPlan.Step step) {
+		if (!level.hasChunk(step.x() >> 4, step.z() >> 4)) {
+			return Outcome.NOT_NOW;
+		}
+		BlockPos ground = new BlockPos(step.x(), level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, step.x(), step.z()) - 1, step.z());
+		if (!WorkSites.isSoil(level.getBlockState(ground))) {
+			return Outcome.SKIPPED;
+		}
+		BlockState above = level.getBlockState(ground.above());
+		if (!above.isAir()) {
+			if (!above.canBeReplaced()) {
+				return Outcome.SKIPPED;
+			}
+			level.setBlock(ground.above(), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+		}
+		level.setBlock(ground, Blocks.DIRT_PATH.defaultBlockState(), Block.UPDATE_ALL);
+		return Outcome.CHANGED;
+	}
+
+	private static Outcome level(ServerLevel level, Building building, BlockPos ground) {
+		if (isWallRun(building)) {
+			// A wall follows the land and stands on a footing of its own (see place): its ground
+			// is not cut or filled, and what stands on its line already is never felled as a tree.
+			return Outcome.SKIPPED;
+		}
+		BlockState soil = level.getBlockState(ground);
+		boolean even = !soil.isAir() && !soil.canBeReplaced();
+		for (int dy = 1; even && dy <= LOT_CUT; dy++) {
+			even = level.getBlockState(ground.above(dy)).isAir();
+		}
+		if (even) {
+			return Outcome.SKIPPED;
+		}
+		// A street lamp standing where a house is to go is taken down again.
+		for (int dy = 4; dy >= 1; dy--) {
+			if (Lamplighter.isLampPart(level.getBlockState(ground.above(dy)))) {
+				level.destroyBlock(ground.above(dy), false);
+			}
+		}
+		// A tree rooted on the lot comes down whole; one trunk left standing would end up indoors.
+		for (int dy = -1; dy <= LOT_CUT; dy++) {
+			BlockPos pos = ground.above(dy);
+			if (level.getBlockState(pos).typeHolder().is(BlockTags.LOGS) && WorkSites.isSoil(level.getBlockState(pos.below()))) {
+				WorkSites.fellTree(level, pos, log -> building.contains(log.getX(), log.getZ()));
+			}
+		}
+		// A lot is made level whatever it takes: a bank is cut away, a pit is filled to the brim.
+		return WorkSites.levelColumn(level, ground, LOT_CUT, LOT_FILL) ? Outcome.CHANGED : Outcome.SKIPPED;
+	}
+
+	private Outcome place(ServerLevel level, Building building, Plan plan, ConstructionPlan.Step step) {
+		BlockPos pos = new BlockPos(step.x(), building.y() + step.dy(), step.z());
+		BlockState current = level.getBlockState(pos);
+		BlockState wanted = Blocks.AIR.defaultBlockState();
+		if (step.state() != null) {
+			BlockState parsed = state(step.state());
+			if (parsed == null) {
+				return Outcome.SKIPPED;
+			}
+			wanted = parsed.rotate(ROTATIONS[building.rotation() & 3]);
+		}
+		if (current == wanted) {
+			return Outcome.SKIPPED;
+		}
+		// Only natural ground and the building's own materials may be replaced.
+		if (!current.isAir() && !WorkSites.isNatural(current) && !plan.ownBlocks().contains(current.getBlock())) {
+			return Outcome.SKIPPED;
+		}
+		if (wanted.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF) || wanted.hasProperty(BlockStateProperties.BED_PART)) {
+			// Doors and beds are two blocks that each vanish without the other. They are set
+			// exactly as designed, without asking the neighbours, so the first half survives
+			// until the second arrives.
+			level.setBlock(pos, wanted, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+		} else {
+			// Everything else settles against its neighbours: panes and fences join up, stairs turn corners.
+			level.setBlock(pos, Block.updateFromNeighbourShapes(wanted, level, pos), Block.UPDATE_ALL);
+		}
+		if (step.dy() == 1 && isWallRun(building)) {
+			// The wall's footing: stone down to solid ground, so nothing can pass beneath it.
+			BlockPos.MutableBlockPos below = pos.mutable();
+			for (int depth = 0; depth < WALL_FOOTING_DEPTH; depth++) {
+				BlockState under = level.getBlockState(below.move(0, -1, 0));
+				if (!under.isAir() && !under.canBeReplaced()) {
+					break;
+				}
+				level.setBlock(below, Blocks.COBBLESTONE.defaultBlockState(), Block.UPDATE_ALL);
+			}
+		}
+		return Outcome.CHANGED;
+	}
+
+	/**
+	 * A block of a finished building was broken: go over the whole building again. Nothing that
+	 * is still right is touched, so only what is missing gets put back.
+	 */
+	void repair(Settlement settlement, Building building) {
+		Plan plan = plan(settlement, building);
+		if (plan == null || building.stage() == Building.Stage.UNDER_CONSTRUCTION || building.stage() == Building.Stage.PLANNED) {
+			return;
+		}
+		// From the first block, not from the start: the ground was levelled long ago, and
+		// levelling again would take the walls for a bump.
+		building.setCursors(building.progress(), Math.min(building.applied(), plan.firstBlockStep()));
+		building.setStage(Building.Stage.UNDER_REPAIR);
+	}
+
+	/** How long a builder takes over a step. */
+	public static int ticksFor(ConstructionPlan.Kind kind) {
+		return switch (kind) {
+			case PAVE -> 8;
+			case LEVEL -> 15;
+			case PLACE -> 6;
+		};
+	}
+
+	/** Kind of the next unapplied step, or null if there is none. */
+	public ConstructionPlan.Kind nextKind(Settlement settlement, Building building) {
+		Plan plan = plan(settlement, building);
+		return plan == null || building.applied() >= plan.steps().size() ? null : plan.steps().get(building.applied()).kind();
+	}
+}

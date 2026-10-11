@@ -1,0 +1,11 @@
+{
+	"type": "minecraft:crafting_shapeless",
+	"category": "misc",
+	"ingredients": [
+		"villagerciv:blank_plan",
+		"minecraft:iron_sword"
+	],
+	"result": {
+		"id": "villagerciv:military_plan"
+	}
+}

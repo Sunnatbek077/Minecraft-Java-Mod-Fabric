@@ -1,0 +1,58 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+base {
+	archivesName = 'villagerciv'
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	runs {
+		client {
+			// A fixed name gives the dev player the same UUID on every launch. Without it each
+			// launch is a new player, and expeditions from the last session wait for someone who
+			// never comes back.
+			programArgs "--username", "Dev"
+		}
+	}
+
+	mods {
+		"villagerciv" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// Simulation core is shipped inside the mod jar (jar-in-jar): one mod, one file.
+	implementation project(':core')
+	include project(':core')
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+	it.options.encoding = 'UTF-8'
+}
+
+java {
+	withSourcesJar()
+
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}

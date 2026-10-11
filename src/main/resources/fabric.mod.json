@@ -1,0 +1,26 @@
+{
+	"schemaVersion": 1,
+	"id": "villagerciv",
+	"version": "${version}",
+	"name": "Villager Civilization",
+	"description": "Recruit villagers, found a settlement, and watch it grow into a civilization that lives on its own.",
+	"authors": [
+		"Sunnatbek"
+	],
+	"license": "All-Rights-Reserved",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.sunnatbek.villagerciv.mod.VillagerCivMod"
+		],
+		"client": [
+			"com.sunnatbek.villagerciv.client.VillagerCivClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

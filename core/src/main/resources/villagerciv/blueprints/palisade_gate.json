@@ -1,0 +1,61 @@
+{
+	"id": "palisade_gate",
+	"name": "Gate",
+	"category": "defense",
+	"cost": {"wood": 70, "stone": 20},
+	"late": "Ddn",
+	"palette": {
+		"C": "minecraft:cobblestone",
+		"S": "minecraft:stone_bricks",
+		"L": "minecraft:dark_oak_log[axis=y]",
+		"M": "minecraft:dark_oak_log[axis=x]",
+		"P": "minecraft:spruce_planks",
+		"s": "minecraft:dark_oak_slab[type=bottom]",
+		"F": "minecraft:spruce_fence",
+		"D": "minecraft:spruce_door[half=lower,facing=north,hinge=left]",
+		"d": "minecraft:spruce_door[half=upper,facing=north,hinge=left]",
+		"n": "minecraft:lantern[hanging=true]"
+	},
+	"layers": [
+		[
+			"CCCCC",
+			"CCCCC",
+			"CCCCC"
+		],
+		[
+			"S...S",
+			"LPDPL",
+			"S...S"
+		],
+		[
+			"L...L",
+			"LPdPL",
+			"L...L"
+		],
+		[
+			"L.n.L",
+			"LMMML",
+			"L.n.L"
+		],
+		[
+			"LPPPL",
+			"PPPPP",
+			"LPPPL"
+		],
+		[
+			"LFFFL",
+			"F...F",
+			"LFFFL"
+		],
+		[
+			"L...L",
+			".....",
+			"L...L"
+		],
+		[
+			"sssss",
+			"sssss",
+			"sssss"
+		]
+	]
+}

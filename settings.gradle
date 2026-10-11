@@ -1,0 +1,16 @@
+pluginManagement {
+	repositories {
+		maven {
+			name = 'Fabric'
+			url = 'https://maven.fabricmc.net/'
+		}
+		mavenCentral()
+		gradlePluginPortal()
+	}
+}
+
+rootProject.name = 'villagerciv'
+
+// Pure-Java simulation core. Has no Minecraft on its classpath, so the
+// "sim core never imports Minecraft" rule is enforced by the compiler.
+include 'core'

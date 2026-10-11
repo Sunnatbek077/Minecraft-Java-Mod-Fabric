@@ -1,0 +1,123 @@
+{
+	"id": "mossy_lodge",
+	"name": "Mossy Lodge",
+	"category": "housing",
+	"beds": 3,
+	"cost": {"wood": 180, "stone": 60},
+	"late": "DdBbnlh",
+	"palette": {
+		"C": "minecraft:cobblestone",
+		"F": "minecraft:spruce_planks",
+		"L": "minecraft:stripped_dark_oak_log[axis=y]",
+		"X": "minecraft:stripped_dark_oak_log[axis=x]",
+		"Y": "minecraft:stripped_dark_oak_log[axis=z]",
+		"S": "minecraft:mossy_cobblestone",
+		"P": "minecraft:spruce_planks",
+		"A": "minecraft:mossy_stone_bricks",
+		"G": "minecraft:glass_pane",
+		"N": "minecraft:spruce_stairs[facing=south,half=bottom]",
+		"Z": "minecraft:spruce_stairs[facing=north,half=bottom]",
+		"R": "minecraft:spruce_slab[type=bottom]",
+		"D": "minecraft:spruce_door[half=lower,facing=north,hinge=left]",
+		"d": "minecraft:spruce_door[half=upper,facing=north,hinge=left]",
+		"b": "minecraft:lime_bed[facing=north,part=head]",
+		"B": "minecraft:lime_bed[facing=north,part=foot]",
+		"h": "minecraft:chest[facing=south]",
+		"n": "minecraft:lantern[hanging=true]",
+		"l": "minecraft:lantern[hanging=false]",
+		"f": "minecraft:spruce_fence",
+		"o": "minecraft:oak_leaves[persistent=true]",
+		"T": "minecraft:fletching_table",
+		"U": "minecraft:barrel[facing=up]"
+	},
+	"layers": [
+		[
+			"           ",
+			" CCCCCCCCC ",
+			" CFFFFFFFC ",
+			" CFFFFFFFC ",
+			" CFFFFFFFC ",
+			" CFFFFFFFC ",
+			" CFFFFFFFC ",
+			" CCCCCCCCC ",
+			"           "
+		],
+		[
+			"           ",
+			" LSSSSSSSL ",
+			" Sbb....bS ",
+			" SBB....BS ",
+			" S.......S ",
+			" Shh....hS ",
+			" ST.....US ",
+			" LSSSDSSSL ",
+			" fo     of "
+		],
+		[
+			"           ",
+			" LGPGPGPGL ",
+			" G.......G ",
+			" P.......P ",
+			" G.......G ",
+			" P.......P ",
+			" G.......G ",
+			" LGPGdGPGL ",
+			" l       l "
+		],
+		[
+			"NNNNNNNNNNN",
+			" LXXXXXXXL ",
+			" Y.......Y ",
+			" Y.......Y ",
+			" Y.......Y ",
+			" Y.......Y ",
+			" Y.......Y ",
+			" LXXXXXXXL ",
+			"ZZZZZZZZZZZ"
+		],
+		[
+			"           ",
+			"NNNNNNNNNNN",
+			" A.......A ",
+			" A.......A ",
+			" G.......G ",
+			" A.......A ",
+			" A.......A ",
+			"ZZZZZZZZZZZ",
+			"           "
+		],
+		[
+			"           ",
+			"           ",
+			"NNNNNNNNNNN",
+			" A.......A ",
+			" A.......A ",
+			" A.......A ",
+			"ZZZZZZZZZZZ",
+			"           ",
+			"           "
+		],
+		[
+			"           ",
+			"           ",
+			"           ",
+			"NNNNNNNNNNN",
+			" A...n...A ",
+			"ZZZZZZZZZZZ",
+			"           ",
+			"           ",
+			"           "
+		],
+		[
+			"           ",
+			"           ",
+			"           ",
+			"           ",
+			"RRRRRRRRRRR",
+			"           ",
+			"           ",
+			"           ",
+			"           "
+		]
+	]
+}

@@ -1,0 +1,81 @@
+{
+	"id": "hut",
+	"name": "Hut",
+	"category": "shelter",
+	"beds": 3,
+	"cost": { "wood": 60 },
+	"late": "DdBbnl",
+	"palette": {
+		"C": "minecraft:cobblestone",
+		"F": "minecraft:spruce_planks",
+		"L": "minecraft:spruce_log[axis=y]",
+		"P": "minecraft:spruce_planks",
+		"G": "minecraft:glass_pane",
+		"W": "minecraft:spruce_stairs[facing=east,half=bottom]",
+		"E": "minecraft:spruce_stairs[facing=west,half=bottom]",
+		"R": "minecraft:spruce_slab[type=bottom]",
+		"D": "minecraft:spruce_door[half=lower,facing=north,hinge=left]",
+		"d": "minecraft:spruce_door[half=upper,facing=north,hinge=left]",
+		"b": "minecraft:white_bed[facing=north,part=head]",
+		"B": "minecraft:white_bed[facing=north,part=foot]",
+		"n": "minecraft:lantern[hanging=true]",
+		"f": "minecraft:spruce_fence",
+		"l": "minecraft:lantern[hanging=false]"
+	},
+	"layers": [
+		[
+			"       ",
+			" CCCCC ",
+			" CFFFC ",
+			" CFFFC ",
+			" CFFFC ",
+			" CCCCC ",
+			"       "
+		],
+		[
+			"       ",
+			" LPPPL ",
+			" PbbbP ",
+			" PBBBP ",
+			" P...P ",
+			" LPDPL ",
+			" f     "
+		],
+		[
+			"W     E",
+			"WLPPPLE",
+			"WG...GE",
+			"WP...PE",
+			"WG...GE",
+			"WLPdPLE",
+			"Wl    E"
+		],
+		[
+			" W   E ",
+			" WPPPE ",
+			" W...E ",
+			" W...E ",
+			" W...E ",
+			" WPPPE ",
+			" W   E "
+		],
+		[
+			"  W E  ",
+			"  WPE  ",
+			"  W.E  ",
+			"  WnE  ",
+			"  W.E  ",
+			"  WPE  ",
+			"  W E  "
+		],
+		[
+			"   R   ",
+			"   R   ",
+			"   R   ",
+			"   R   ",
+			"   R   ",
+			"   R   ",
+			"   R   "
+		]
+	]
+}

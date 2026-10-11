@@ -1,0 +1,11 @@
+{
+	"type": "minecraft:crafting_shapeless",
+	"category": "misc",
+	"ingredients": [
+		"villagerciv:blank_plan",
+		"minecraft:hay_block"
+	],
+	"result": {
+		"id": "villagerciv:agrarian_plan"
+	}
+}

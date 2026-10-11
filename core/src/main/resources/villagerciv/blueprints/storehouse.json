@@ -1,0 +1,120 @@
+{
+	"id": "storehouse",
+	"name": "Storehouse",
+	"category": "storage",
+	"beds": 0,
+	"cost": { "wood": 220, "stone": 100 },
+	"late": "DdQqn",
+	"palette": {
+		"C": "minecraft:cobblestone",
+		"S": "minecraft:stone_bricks",
+		"F": "minecraft:oak_planks",
+		"L": "minecraft:dark_oak_log[axis=y]",
+		"P": "minecraft:spruce_planks",
+		"G": "minecraft:glass_pane",
+		"M": "minecraft:dark_oak_log[axis=x]",
+		"m": "minecraft:dark_oak_log[axis=z]",
+		"N": "minecraft:dark_oak_stairs[facing=south,half=bottom]",
+		"Z": "minecraft:dark_oak_stairs[facing=north,half=bottom]",
+		"R": "minecraft:dark_oak_slab[type=bottom]",
+		"D": "minecraft:spruce_door[half=lower,facing=north,hinge=left]",
+		"d": "minecraft:spruce_door[half=upper,facing=north,hinge=left]",
+		"Q": "minecraft:spruce_door[half=lower,facing=north,hinge=right]",
+		"q": "minecraft:spruce_door[half=upper,facing=north,hinge=right]",
+		"H": "minecraft:barrel[facing=up]",
+		"c": "minecraft:chest[facing=east]",
+		"e": "minecraft:chest[facing=west]",
+		"y": "minecraft:hay_block[axis=y]",
+		"n": "minecraft:lantern[hanging=true]"
+	},
+	"layers": [
+		[
+			"          ",
+			" CCCCCCCC ",
+			" CFFFFFFC ",
+			" CFFFFFFC ",
+			" CFFFFFFC ",
+			" CFFFFFFC ",
+			" CFFFFFFC ",
+			" CCCCCCCC ",
+			"          "
+		],
+		[
+			"          ",
+			" LSSSSSSL ",
+			" SHH..HHS ",
+			" SH....HS ",
+			" S......S ",
+			" Sc....eS ",
+			" S......S ",
+			" LSLDQLSL ",
+			"  H    y  "
+		],
+		[
+			"          ",
+			" LPPPPPPL ",
+			" PHH..HHP ",
+			" P......P ",
+			" G......G ",
+			" P......P ",
+			" P......P ",
+			" LPLdqLPL ",
+			"  H       "
+		],
+		[
+			"NNNNNNNNNN",
+			" LMMMMMML ",
+			" m......m ",
+			" m......m ",
+			" m......m ",
+			" m......m ",
+			" m......m ",
+			" LGLMMLGL ",
+			"ZZZZZZZZZZ"
+		],
+		[
+			"          ",
+			"NNNNNNNNNN",
+			" P......P ",
+			" P......P ",
+			" P......P ",
+			" P......P ",
+			" P......P ",
+			"ZZZZZZZZZZ",
+			"          "
+		],
+		[
+			"          ",
+			"          ",
+			"NNNNNNNNNN",
+			" P......P ",
+			" G......G ",
+			" P......P ",
+			"ZZZZZZZZZZ",
+			"          ",
+			"          "
+		],
+		[
+			"          ",
+			"          ",
+			"          ",
+			"NNNNNNNNNN",
+			" P.n..n.P ",
+			"ZZZZZZZZZZ",
+			"          ",
+			"          ",
+			"          "
+		],
+		[
+			"          ",
+			"          ",
+			"          ",
+			"          ",
+			"RRRRRRRRRR",
+			"          ",
+			"          ",
+			"          ",
+			"          "
+		]
+	]
+}

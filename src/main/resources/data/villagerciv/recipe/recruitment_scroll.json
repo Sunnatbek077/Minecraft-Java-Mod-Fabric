@@ -1,0 +1,16 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "misc",
+	"key": {
+		"E": "minecraft:emerald",
+		"P": "minecraft:paper"
+	},
+	"pattern": [
+		"EEE",
+		"EPE",
+		"EEE"
+	],
+	"result": {
+		"id": "villagerciv:recruitment_scroll"
+	}
+}
