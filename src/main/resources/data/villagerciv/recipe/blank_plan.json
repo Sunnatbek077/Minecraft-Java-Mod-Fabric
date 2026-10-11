@@ -1,6 +1,7 @@
 {
 	"type": "minecraft:crafting_shaped",
 	"category": "misc",
+	"group": "villagerciv_blank_plan",
 	"key": {
 		"P": "minecraft:paper",
 		"B": "minecraft:book"

@@ -1,0 +1,83 @@
+{
+	"id": "stone_tower",
+	"name": "Stone Tower",
+	"category": "defense",
+	"cost": {"wood": 20, "stone": 220},
+	"late": "l",
+	"palette": {
+		"C": "minecraft:cobblestone",
+		"S": "minecraft:stone_bricks",
+		"L": "minecraft:stone_bricks",
+		"T": "minecraft:cobblestone",
+		"P": "minecraft:polished_andesite",
+		"F": "minecraft:stone_brick_wall",
+		"s": "minecraft:stone_brick_slab[type=bottom]",
+		"t": "minecraft:stone_brick_slab[type=top]",
+		"l": "minecraft:lantern[hanging=false]"
+	},
+	"layers": [
+		[
+			"CCCCC",
+			"CCCCC",
+			"CCCCC",
+			"CCCCC",
+			"CCCCC"
+		],
+		[
+			"LSSSL",
+			"S...S",
+			"S...S",
+			"S...S",
+			"LSSSL"
+		],
+		[
+			"LTTTL",
+			"T...T",
+			"T...T",
+			"T...T",
+			"LTTTL"
+		],
+		[
+			"LTTTL",
+			"T...T",
+			"T...T",
+			"T...T",
+			"LTTTL"
+		],
+		[
+			"LTTTL",
+			"T...T",
+			"T...T",
+			"T...T",
+			"LTTTL"
+		],
+		[
+			"PPPPP",
+			"PPPPP",
+			"PPPPP",
+			"PPPPP",
+			"PPPPP"
+		],
+		[
+			"LFFFL",
+			"F...F",
+			"F.l.F",
+			"F...F",
+			"LFFFL"
+		],
+		[
+			"L...L",
+			".....",
+			".....",
+			".....",
+			"L...L"
+		],
+		[
+			"ttttt",
+			"ttttt",
+			"ttstt",
+			"ttttt",
+			"ttttt"
+		]
+	]
+}

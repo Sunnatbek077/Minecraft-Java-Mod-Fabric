@@ -2,18 +2,19 @@ package com.sunnatbek.villagerciv.mod;
 
 import com.sunnatbek.villagerciv.mod.entity.CitizenEntity;
 import com.sunnatbek.villagerciv.sim.Policy;
-import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
+import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeBookCategory;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -33,6 +34,10 @@ public final class ModContent {
 	public static final Item AGRARIAN_PLAN = plan("agrarian_plan", Policy.AGRARIAN);
 	public static final Item INDUSTRY_PLAN = plan("industry_plan", Policy.INDUSTRY);
 	public static final Item MILITARY_PLAN = plan("military_plan", Policy.MILITARY);
+	/** A town's leave to grow beyond its first wall: the second stage of a patron's plans for it. */
+	public static final Item EXPANSION_CHARTER = item("expansion_charter", 1);
+	/** The mark that makes a blank plan into an Expansion Charter. It has no use of its own. */
+	public static final Item SURVEYORS_SEAL = item("surveyors_seal", 16);
 
 	private static final ResourceKey<Block> TOWN_CENTER_KEY = ResourceKey.create(Registries.BLOCK, id("town_center"));
 	private static final ResourceKey<EntityType<?>> CITIZEN_KEY = ResourceKey.create(Registries.ENTITY_TYPE, id("citizen"));
@@ -65,6 +70,11 @@ public final class ModContent {
 					.clientTrackingRange(10)
 					.build(CITIZEN_KEY));
 
+	/** The mod's page in the crafting table's recipe book, and the prefix of the group every one of its recipes names. */
+	public static final RecipeBookCategory RECIPE_PAGE = Registry.register(BuiltInRegistries.RECIPE_BOOK_CATEGORY, id("civilization"),
+			new RecipeBookCategory());
+	public static final String RECIPE_GROUP = "villagerciv";
+
 	private ModContent() {
 	}
 
@@ -86,15 +96,23 @@ public final class ModContent {
 
 	static void register() {
 		FabricDefaultAttributeRegistry.register(CITIZEN, CitizenEntity.createAttributes());
-		CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.TOOLS_AND_UTILITIES)
-				.register(output -> {
-					output.accept(RECRUITMENT_SCROLL);
-					output.accept(FOUNDING_CHARTER);
-					output.accept(BLANK_PLAN);
-					output.accept(AGRARIAN_PLAN);
-					output.accept(INDUSTRY_PLAN);
-					output.accept(MILITARY_PLAN);
-				});
+		// A tab of the mod's own, so that its things are found in one place and not hunted for
+		// among the game's.
+		Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, ResourceKey.create(Registries.CREATIVE_MODE_TAB, id("items")),
+				FabricCreativeModeTab.builder()
+						.title(Component.translatable("itemGroup.villagerciv"))
+						.icon(() -> new ItemStack(FOUNDING_CHARTER))
+						.displayItems((_, output) -> {
+							output.accept(RECRUITMENT_SCROLL);
+							output.accept(FOUNDING_CHARTER);
+							output.accept(BLANK_PLAN);
+							output.accept(AGRARIAN_PLAN);
+							output.accept(INDUSTRY_PLAN);
+							output.accept(MILITARY_PLAN);
+							output.accept(SURVEYORS_SEAL);
+							output.accept(EXPANSION_CHARTER);
+						})
+						.build());
 	}
 
 	public static Identifier id(String path) {

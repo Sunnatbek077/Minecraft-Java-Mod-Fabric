@@ -184,6 +184,7 @@ public final class VillagerCivMod implements ModInitializer {
 	}
 
 	private static void tick(MinecraftServer server) {
+		AutoTest.tick(server, simulation, embodiment);
 		if (simulation == null) {
 			return;
 		}

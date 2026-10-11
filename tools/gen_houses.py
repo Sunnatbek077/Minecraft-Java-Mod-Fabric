@@ -214,7 +214,9 @@ designs = [
 
 def dump(d):
     lines = ["{"]
-    for k in ("id", "name", "category", "beds", "cost", "late"):
+    for k in ("id", "name", "category", "beds", "min_stage", "cost", "late"):
+        if k not in d:
+            continue
         lines.append(f"\t{json.dumps(k)}: {json.dumps(d[k])},")
     lines.append('\t"palette": {')
     items = list(d["palette"].items())

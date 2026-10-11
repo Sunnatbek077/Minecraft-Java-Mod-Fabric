@@ -90,8 +90,12 @@ final class RecruitmentHandler {
 				villager.releasePoi(MemoryModuleType.POTENTIAL_JOB_SITE);
 				villager.releasePoi(MemoryModuleType.MEETING_POINT);
 				villager.discard();
-				embodiment.materialize(level, accepted.group(), accepted.citizen(),
-						accepted.citizen().x(), accepted.citizen().y(), accepted.citizen().z(), yRot);
+				if (embodiment.materialize(level, accepted.group(), accepted.citizen(),
+						accepted.citizen().x(), accepted.citizen().y(), accepted.citizen().z(), yRot) == null) {
+					// Every body the machine is allowed is in use: the recruit is there, on the
+					// books and at work, but is not shown. Said out loud, or it looks like a loss.
+					player.sendSystemMessage(Component.translatable("message.villagerciv.recruit.unseen", accepted.citizen().name()));
+				}
 				if (accepted.group() instanceof Settlement settlement) {
 					player.sendSystemMessage(Component.translatable("message.villagerciv.recruit.settled",
 							accepted.citizen().name(), settlement.name(), settlement.size()));

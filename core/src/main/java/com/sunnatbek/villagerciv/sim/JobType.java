@@ -23,7 +23,13 @@ public enum JobType {
 	/** Cutting stone in the mason's yard, which is what lets the builders work faster. */
 	MASON(null, Role.MASON, 1, 0),
 	/** Keeping the market. What it yields is dealt with in {@link Trade}. */
-	TRADE(null, Role.MERCHANT, 1, 0);
+	TRADE(null, Role.MERCHANT, 1, 0),
+	/**
+	 * Keeping the animals in one of the settlement's pens: cattle in one, sheep in another, and so
+	 * on. Its place is the pen, one herder to each. The pens come with the leave to grow beyond
+	 * the first wall.
+	 */
+	HERD(Commodity.FOOD, Role.HERDER, 1, 800);
 
 	/** Id of the design of the workshop this job is done in, or null for a job that has none. */
 	public String workshop() {

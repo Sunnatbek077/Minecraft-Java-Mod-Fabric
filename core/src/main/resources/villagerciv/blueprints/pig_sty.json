@@ -1,0 +1,61 @@
+{
+	"id": "pig_sty",
+	"name": "Pig Sty",
+	"category": "workshop",
+	"beds": 0,
+	"min_stage": 2,
+	"cost": {"wood": 50, "stone": 40},
+	"late": "C",
+	"palette": {
+		"A": "minecraft:coarse_dirt",
+		"B": "minecraft:mud_bricks",
+		"C": "minecraft:lantern[hanging=false]",
+		"D": "minecraft:mud_brick_wall",
+		"E": "minecraft:spruce_slab[type=bottom]",
+		"F": "minecraft:stripped_spruce_log[axis=y]",
+		"G": "minecraft:podzol",
+		"H": "minecraft:rooted_dirt",
+		"I": "minecraft:spruce_fence_gate[facing=south]",
+		"J": "minecraft:composter",
+		"K": "minecraft:water_cauldron[level=3]",
+		"L": "minecraft:hay_block"
+	},
+	"layers": [
+		[
+			"AAAAAAAAA",
+			"AAGGAAAAA",
+			"AAGGAAAAA",
+			"AAAAAAHAA",
+			"AAHAAAAAA",
+			"AAAAAHAAA",
+			"AAAAAAAAA"
+		],
+		[
+			"BDDDDDDDB",
+			"DB..B.JKD",
+			"DF..F...D",
+			"D.......D",
+			"D.......D",
+			"D......LD",
+			"BDDDIDDDB"
+		],
+		[
+			"B.......B",
+			".B..B....",
+			".F..F....",
+			".........",
+			".........",
+			".........",
+			"B.......B"
+		],
+		[
+			"C       C",
+			" EEEE... ",
+			" EEEE... ",
+			" ....... ",
+			" ....... ",
+			" ....... ",
+			"C       C"
+		]
+	]
+}

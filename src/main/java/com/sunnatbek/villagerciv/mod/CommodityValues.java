@@ -37,6 +37,10 @@ public final class CommodityValues {
 		if (stack.is(Items.HAY_BLOCK)) {
 			return new Value(Commodity.FOOD, 1);
 		}
+		// Eggs are eaten, though not as they are laid.
+		if (stack.is(Items.EGG)) {
+			return new Value(Commodity.FOOD, 1);
+		}
 		FoodProperties food = stack.get(DataComponents.FOOD);
 		if (food != null) {
 			return new Value(Commodity.FOOD, mealsOf(food));

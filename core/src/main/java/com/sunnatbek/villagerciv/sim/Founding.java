@@ -7,6 +7,8 @@ public final class Founding {
 	/** Radius of the site survey, and of the first territory claim, in blocks. */
 	public static final int SURVEY_RADIUS = 48;
 	public static final int CLAIM_RADIUS = 40;
+	/** How far the survey and the claim of an enlarged settlement reach. */
+	public static final int EXPANDED_RADIUS = 96;
 
 	private static final String[] FIRST = {
 			"Alder", "Ash", "Birch", "Bram", "Clear", "Elm", "Fern", "Glen", "Green", "Hazel",

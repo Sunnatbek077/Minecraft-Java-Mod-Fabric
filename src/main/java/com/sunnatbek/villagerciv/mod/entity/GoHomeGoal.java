@@ -106,9 +106,11 @@ final class GoHomeGoal extends Goal {
 				waitUntilTick = entity.tickCount + BED_RETRY_WAIT_TICKS;
 			}
 		} else if (++travelled > TRAVEL_TIMEOUT_TICKS) {
-			// Cannot get in right now; try again in a while rather than push at the wall all night.
-			waitUntilTick = entity.tickCount + RETRY_WAIT_TICKS;
-			done = true;
+			// Cannot find the way in. Nobody is left outside all night for that: it is its own
+			// house, and it is taken as having got there.
+			entity.getNavigation().stop();
+			entity.teleportTo(bedside.getX() + 0.5, bedside.getY(), bedside.getZ() + 0.5);
+			travelled = 0;
 		} else if (--repathIn <= 0 && embodiment.takePathSlot()) {
 			repathIn = REPATH_INTERVAL_TICKS;
 			entity.getNavigation().moveTo(bedside.getX() + 0.5, bedside.getY(), bedside.getZ() + 0.5, 0.6);

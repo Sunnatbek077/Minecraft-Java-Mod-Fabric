@@ -22,5 +22,12 @@
 		"minecraft": "~26.3",
 		"java": ">=25",
 		"fabric-api": "*"
-	}
+	},
+	"mixins": [
+		"villagerciv.mixins.json",
+		{
+			"config": "villagerciv.client.mixins.json",
+			"environment": "client"
+		}
+	]
 }

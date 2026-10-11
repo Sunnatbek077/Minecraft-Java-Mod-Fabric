@@ -292,6 +292,41 @@ public final class Simulation {
 		return Optional.of(settlement);
 	}
 
+	/**
+	 * The patron's Expansion Charter takes effect: the settlement may grow beyond its first wall.
+	 * It is given the wider survey of its land, claims the ground that goes with it (where nobody
+	 * else has), and, if it is a walled place or means to be one, plans a second ring of stone
+	 * round the whole. The first wall stays standing inside the second.
+	 *
+	 * @return false if it had been enlarged already
+	 */
+	public boolean expand(Settlement settlement, Settlement.PlotMap widerPlots) {
+		if (settlement.expansion() > 0) {
+			return false;
+		}
+		settlement.setExpansion(1);
+		settlement.setSurvey(settlement.siteScore(), widerPlots);
+		int reach = (Founding.EXPANDED_RADIUS >> 4) + 1;
+		for (int cx = (settlement.anchorX() >> 4) - reach; cx <= (settlement.anchorX() >> 4) + reach; cx++) {
+			for (int cz = (settlement.anchorZ() >> 4) - reach; cz <= (settlement.anchorZ() >> 4) + reach; cz++) {
+				double dx = (cx << 4) + 8 - settlement.anchorX();
+				double dz = (cz << 4) + 8 - settlement.anchorZ();
+				long chunk = ChunkKey.of(cx, cz);
+				if (Math.max(Math.abs(dx), Math.abs(dz)) <= Founding.EXPANDED_RADIUS && state.territoryOwner(chunk).isEmpty()) {
+					settlement.claim(chunk);
+				}
+			}
+		}
+		state.territoryChanged();
+		if (settlement.wallPieces() > 0 || settlement.hasPlan(Policy.MILITARY)) {
+			List<com.sunnatbek.villagerciv.build.WallPiece> pieces = new ArrayList<>(settlement.wallPlan());
+			List<com.sunnatbek.villagerciv.build.WallPiece> outer = com.sunnatbek.villagerciv.build.Fortification.planOuter(settlement, blueprints);
+			pieces.addAll(outer);
+			settlement.setWallPlan(pieces, settlement.wallPieces() + outer.size());
+		}
+		return true;
+	}
+
 	/** Chunks whose centre lies within the first claim radius of a block. */
 	private static List<Long> claimAround(int x, int z) {
 		List<Long> chunks = new ArrayList<>();

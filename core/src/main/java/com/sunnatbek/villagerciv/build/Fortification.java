@@ -18,6 +18,11 @@ import java.util.List;
 public final class Fortification {
 	public static final String GATE = "palisade_gate";
 	public static final String TOWER = "watchtower";
+	/** The gate and tower of the stone ring: the same shapes, in stone. */
+	public static final String STONE_GATE = "stone_gate";
+	public static final String STONE_TOWER = "stone_tower";
+	/** Half the side of the second ring: it takes in the whole of the enlarged survey but for a margin. */
+	public static final int OUTER_RADIUS = 88;
 	private static final int MARGIN = 5;
 	/**
 	 * The ring is never drawn tight around a young settlement: what is inside the wall is all the
@@ -51,25 +56,43 @@ public final class Fortification {
 
 	/** The pieces of the ring, in the order they should be built. */
 	public static List<WallPiece> plan(Settlement settlement, BlueprintLibrary library) {
-		int radius = radius(settlement);
+		return ring(settlement, library, radius(settlement), false);
+	}
+
+	/** The second ring: stone, and far enough out to hold a town. The first stays standing inside it. */
+	public static List<WallPiece> planOuter(Settlement settlement, BlueprintLibrary library) {
+		return ring(settlement, library, OUTER_RADIUS, true);
+	}
+
+	public static boolean isGate(String blueprint) {
+		return blueprint.equals(GATE) || blueprint.equals(STONE_GATE);
+	}
+
+	public static boolean isTower(String blueprint) {
+		return blueprint.equals(TOWER) || blueprint.equals(STONE_TOWER);
+	}
+
+	private static List<WallPiece> ring(Settlement settlement, BlueprintLibrary library, int radius, boolean stone) {
 		int ax = settlement.anchorX();
 		int az = settlement.anchorZ();
-		Blueprint gate = library.get(GATE).orElseThrow();
-		Blueprint tower = library.get(TOWER).orElseThrow();
+		String gateId = stone ? STONE_GATE : GATE;
+		String towerId = stone ? STONE_TOWER : TOWER;
+		Blueprint gate = library.get(gateId).orElseThrow();
+		Blueprint tower = library.get(towerId).orElseThrow();
 
 		List<WallPiece> gates = new ArrayList<>();
 		List<WallPiece> towers = new ArrayList<>();
 		List<WallPiece> walls = new ArrayList<>();
 		// Sides in the order south, west, north, east: the rotation that turns a design's front outwards.
 		for (int side = 0; side < 4; side++) {
-			gates.add(piece(ax, az, radius, side, -GATE_HALF, gate.width(), gate.depth(), GATE));
+			gates.add(piece(ax, az, radius, side, -GATE_HALF, gate.width(), gate.depth(), gateId));
 			// Wall runs from just past the corner tower to the gate, on either hand.
-			addRun(walls, ax, az, radius, side, -radius + TOWER_HALF + 1, -GATE_HALF - 1);
-			addRun(walls, ax, az, radius, side, GATE_HALF + 1, radius - TOWER_HALF - 1);
+			addRun(walls, ax, az, radius, side, -radius + TOWER_HALF + 1, -GATE_HALF - 1, stone);
+			addRun(walls, ax, az, radius, side, GATE_HALF + 1, radius - TOWER_HALF - 1, stone);
 		}
 		for (int cornerX = -1; cornerX <= 1; cornerX += 2) {
 			for (int cornerZ = -1; cornerZ <= 1; cornerZ += 2) {
-				towers.add(new WallPiece(TOWER, ax + cornerX * radius - TOWER_HALF, az + cornerZ * radius - TOWER_HALF, 0,
+				towers.add(new WallPiece(towerId, ax + cornerX * radius - TOWER_HALF, az + cornerZ * radius - TOWER_HALF, 0,
 						tower.width(), tower.depth()));
 			}
 		}
@@ -80,10 +103,10 @@ public final class Fortification {
 	}
 
 	/** Fills the stretch from {@code from} to {@code to} (inclusive, along the side) with palisade pieces. */
-	private static void addRun(List<WallPiece> walls, int ax, int az, int radius, int side, int from, int to) {
+	private static void addRun(List<WallPiece> walls, int ax, int az, int radius, int side, int from, int to, boolean stone) {
 		for (int start = from; start <= to; ) {
 			int length = Math.min(WallDesigns.MAX_LENGTH, to - start + 1);
-			walls.add(piece(ax, az, radius, side, start, length, 1, WallDesigns.palisadeId(length)));
+			walls.add(piece(ax, az, radius, side, start, length, 1, stone ? WallDesigns.rampartId(length) : WallDesigns.palisadeId(length)));
 			start += length;
 		}
 	}

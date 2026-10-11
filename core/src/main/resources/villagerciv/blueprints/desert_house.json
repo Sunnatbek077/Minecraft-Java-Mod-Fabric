@@ -1,0 +1,110 @@
+{
+	"id": "desert_house",
+	"name": "Terrace House",
+	"category": "housing",
+	"beds": 3,
+	"min_stage": 1,
+	"cost": {"wood": 230, "stone": 150},
+	"late": "DEFGHILMNS",
+	"palette": {
+		"A": "minecraft:smooth_sandstone",
+		"B": "minecraft:cut_sandstone",
+		"C": "minecraft:sandstone",
+		"D": "minecraft:orange_bed[facing=north,part=head]",
+		"E": "minecraft:orange_bed[facing=north,part=foot]",
+		"F": "minecraft:chest[facing=south]",
+		"G": "minecraft:decorated_pot[facing=south]",
+		"H": "minecraft:orange_carpet",
+		"I": "minecraft:acacia_door[half=lower,facing=north,hinge=left]",
+		"J": "minecraft:barrel[facing=up]",
+		"K": "minecraft:glass_pane",
+		"L": "minecraft:acacia_door[half=upper,facing=north,hinge=left]",
+		"M": "minecraft:potted_cactus",
+		"N": "minecraft:lantern[hanging=true]",
+		"O": "minecraft:sandstone_wall",
+		"P": "minecraft:sandstone_stairs[facing=north,half=bottom]",
+		"Q": "minecraft:acacia_fence",
+		"R": "minecraft:acacia_slab[type=bottom]",
+		"S": "minecraft:potted_dead_bush",
+		"T": "minecraft:composter"
+	},
+	"layers": [
+		[
+			"         ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			"         "
+		],
+		[
+			"         ",
+			" BCCCCCBC",
+			" CDD..DCC",
+			" CEE..ECC",
+			" C.....CC",
+			" CFFHHFCC",
+			" CG...JCP",
+			" BCCICCB ",
+			"   Q Q   "
+		],
+		[
+			"         ",
+			" BAKAKABC",
+			" A.....AC",
+			" K.....KC",
+			" K.....KC",
+			" K.....KP",
+			" A....MA ",
+			" BAKLKAB ",
+			"   Q Q   "
+		],
+		[
+			"         ",
+			" BAAAAABC",
+			" A.....AC",
+			" A.....AC",
+			" A.....AP",
+			" A.....A ",
+			" A.....A ",
+			" BAAAAAB ",
+			"   RRR   "
+		],
+		[
+			"         ",
+			" BAAAAABC",
+			" A.....AC",
+			" A.....AP",
+			" A..N..A ",
+			" A.....A ",
+			" A.....A ",
+			" BAAAAAB ",
+			"         "
+		],
+		[
+			"         ",
+			" AAAAAAAC",
+			" AAAAAAAP",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			"         "
+		],
+		[
+			"         ",
+			" OOOOOO. ",
+			" OS    . ",
+			" O     O ",
+			" O     O ",
+			" O     O ",
+			" OG   TO ",
+			" OOOOOOO ",
+			"         "
+		]
+	]
+}

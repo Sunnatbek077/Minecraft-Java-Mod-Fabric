@@ -1,0 +1,61 @@
+{
+	"id": "stone_gate",
+	"name": "Stone Gate",
+	"category": "defense",
+	"cost": {"wood": 20, "stone": 140},
+	"late": "Ddn",
+	"palette": {
+		"C": "minecraft:cobblestone",
+		"S": "minecraft:stone_bricks",
+		"L": "minecraft:stone_bricks",
+		"M": "minecraft:chiseled_stone_bricks",
+		"P": "minecraft:polished_andesite",
+		"s": "minecraft:stone_brick_slab[type=bottom]",
+		"F": "minecraft:stone_brick_wall",
+		"D": "minecraft:spruce_door[half=lower,facing=north,hinge=left]",
+		"d": "minecraft:spruce_door[half=upper,facing=north,hinge=left]",
+		"n": "minecraft:lantern[hanging=true]"
+	},
+	"layers": [
+		[
+			"CCCCC",
+			"CCCCC",
+			"CCCCC"
+		],
+		[
+			"S...S",
+			"LPDPL",
+			"S...S"
+		],
+		[
+			"L...L",
+			"LPdPL",
+			"L...L"
+		],
+		[
+			"L.n.L",
+			"LMMML",
+			"L.n.L"
+		],
+		[
+			"LPPPL",
+			"PPPPP",
+			"LPPPL"
+		],
+		[
+			"LFFFL",
+			"F...F",
+			"LFFFL"
+		],
+		[
+			"L...L",
+			".....",
+			"L...L"
+		],
+		[
+			"sssss",
+			"sssss",
+			"sssss"
+		]
+	]
+}

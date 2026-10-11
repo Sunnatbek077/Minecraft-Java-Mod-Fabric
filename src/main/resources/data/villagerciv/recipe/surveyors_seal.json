@@ -1,0 +1,19 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "misc",
+	"group": "villagerciv_surveyors_seal",
+	"key": {
+		"G": "minecraft:gold_ingot",
+		"D": "minecraft:diamond",
+		"C": "minecraft:compass",
+		"E": "minecraft:emerald"
+	},
+	"pattern": [
+		" G ",
+		"DCE",
+		" G "
+	],
+	"result": {
+		"id": "villagerciv:surveyors_seal"
+	}
+}

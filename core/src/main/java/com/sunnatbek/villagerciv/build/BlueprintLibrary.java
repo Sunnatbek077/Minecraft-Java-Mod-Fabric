@@ -156,6 +156,7 @@ public final class BlueprintLibrary {
 		return new Blueprint(id, json.get("name").getAsString(),
 				Blueprint.Category.valueOf(json.get("category").getAsString().toUpperCase(Locale.ROOT)),
 				width, layers.size(), depth, List.copyOf(layers), Map.copyOf(palette), late,
-				json.has("beds") ? json.get("beds").getAsInt() : 0, Map.copyOf(cost), Map.copyOf(storage));
+				json.has("beds") ? json.get("beds").getAsInt() : 0, Map.copyOf(cost), Map.copyOf(storage),
+				json.has("min_stage") ? json.get("min_stage").getAsInt() : 0);
 	}
 }

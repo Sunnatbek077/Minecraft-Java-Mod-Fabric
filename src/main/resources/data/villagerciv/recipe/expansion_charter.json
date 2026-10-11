@@ -1,0 +1,12 @@
+{
+	"type": "minecraft:crafting_shapeless",
+	"category": "misc",
+	"group": "villagerciv_expansion_charter",
+	"ingredients": [
+		"villagerciv:blank_plan",
+		"villagerciv:surveyors_seal"
+	],
+	"result": {
+		"id": "villagerciv:expansion_charter"
+	}
+}

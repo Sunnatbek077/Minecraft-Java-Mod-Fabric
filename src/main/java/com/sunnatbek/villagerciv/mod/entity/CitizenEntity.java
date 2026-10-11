@@ -132,6 +132,7 @@ public class CitizenEntity extends PathfinderMob {
 		goalSelector.addGoal(3, new BuildGoal(this));
 		goalSelector.addGoal(3, new LampGoal(this, true));
 		goalSelector.addGoal(3, new WorkshopGoal(this));
+		goalSelector.addGoal(3, new HerdGoal(this));
 		goalSelector.addGoal(3, new LandscapeGoal(this, true));
 		goalSelector.addGoal(4, new LandscapeGoal(this, false));
 		goalSelector.addGoal(4, new LampGoal(this, false));
@@ -212,6 +213,15 @@ public class CitizenEntity extends PathfinderMob {
 		this.citizen = citizen;
 		setHealth(Math.clamp(citizen.health(), 1f, getMaxHealth()));
 		setCustomName(Component.literal(citizen.name()));
+		// Its pack is as the record has it: what it was carrying when it last had a body.
+		pack.clear();
+		citizen.finds().forEach((id, count) -> {
+			net.minecraft.resources.Identifier key = net.minecraft.resources.Identifier.tryParse(id);
+			net.minecraft.world.item.Item item = key == null ? null : net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(key).orElse(null);
+			for (int left = count; item != null && left > 0; left -= 64) {
+				pack.add(new ItemStack(item, Math.min(64, left)));
+			}
+		});
 	}
 
 	public Citizen citizen() {
@@ -251,6 +261,15 @@ public class CitizenEntity extends PathfinderMob {
 		if (citizen != null && isAlive()) {
 			citizen.setPosition(getX(), getY(), getZ());
 			citizen.setHealth(getHealth());
+			// The pack goes into the record as well: a body is not saved, and what it carried
+			// would otherwise be gone the next time the world is opened.
+			java.util.Map<String, Integer> finds = new java.util.LinkedHashMap<>();
+			for (ItemStack stack : pack) {
+				if (!stack.isEmpty()) {
+					finds.merge(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(), stack.getCount(), Integer::sum);
+				}
+			}
+			citizen.setFinds(finds);
 		}
 	}
 
@@ -332,6 +351,9 @@ public class CitizenEntity extends PathfinderMob {
 			case TRADE -> {
 				return Items.EMERALD;
 			}
+			case HERD -> {
+				return Items.WHEAT;
+			}
 			default -> {
 			}
 		}
@@ -366,6 +388,10 @@ public class CitizenEntity extends PathfinderMob {
 			int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, getBlockX(), getBlockZ());
 			getNavigation().stop();
 			teleportTo(getBlockX() + 0.5, top, getBlockZ() + 0.5);
+			return false;
+		}
+		// A guard's bolt that goes astray does not wound its own people.
+		if (source.getEntity() instanceof CitizenEntity) {
 			return false;
 		}
 		boolean hurt = super.hurtServer(level, source, amount);

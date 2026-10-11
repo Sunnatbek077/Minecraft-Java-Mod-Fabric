@@ -35,6 +35,8 @@ public final class Population {
 
 	private static final long STEP_TICKS = ExpeditionUpkeep.STEP_TICKS;
 	private static final int MIN_MORALE_FOR_BIRTHS = 50;
+	private static final int PUBLIC_MORALE = 3;
+	private static final int MAX_PUBLIC_MORALE = 12;
 	private static final int VILLAGE_FOOD_DAYS = 5;
 	private static final int VILLAGE_MORALE = 60;
 	/** Chance of a birth per step (a tenth of a day) when there is plenty of room. */
@@ -43,6 +45,8 @@ public final class Population {
 	private static final double ARRIVAL_CHANCE = 0.25;
 	private static final int ARRIVAL_FOOD_DAYS = 5;
 	private static final int ARRIVAL_MORALE = 60;
+	/** One more newcomer comes along with the first for every so many people already living there. */
+	private static final int ARRIVALS_PER_HEAD = 25;
 
 	private static final Role[] TRADES = {Role.FARMER, Role.LUMBERJACK, Role.MINER, Role.BUILDER, Role.LABORER};
 
@@ -129,6 +133,8 @@ public final class Population {
 		if (settlement.hasPlan(Policy.MILITARY)) {
 			morale += 5; // people sleep easier in a place that looks to its defence
 		}
+		// A well to meet at, a tavern, a chapel: such places are what make a town a good one to live in.
+		morale += Math.min(MAX_PUBLIC_MORALE, PUBLIC_MORALE * settlement.publicBuildings());
 		return Math.clamp(morale, 0, 100);
 	}
 
@@ -300,18 +306,23 @@ public final class Population {
 		if (random.nextDouble() >= ARRIVAL_CHANCE) {
 			return;
 		}
-		ledger.take(Commodity.FOOD, ARRIVAL_FOOD);
-		ledger.take(Commodity.WOOD, ARRIVAL_WOOD);
-		ledger.take(Commodity.STONE, ARRIVAL_STONE);
+		// Word of a big place travels further: a camp draws one at a time, a town a family.
+		int together = Math.min(room, 1 + size / ARRIVALS_PER_HEAD);
+		for (int i = 0; i < together && ledger.available(Commodity.FOOD) >= ARRIVAL_FOOD
+				&& ledger.available(Commodity.WOOD) >= ARRIVAL_WOOD && ledger.available(Commodity.STONE) >= ARRIVAL_STONE; i++) {
+			ledger.take(Commodity.FOOD, ARRIVAL_FOOD);
+			ledger.take(Commodity.WOOD, ARRIVAL_WOOD);
+			ledger.take(Commodity.STONE, ARRIVAL_STONE);
 
-		Role affinity = TRADES[random.nextInt(TRADES.length)];
-		EnumSet<Trait> traits = EnumSet.of(Trait.values()[random.nextInt(Trait.values().length)]);
-		Citizen newcomer = new Citizen(new CitizenId(random.next()), CitizenNames.pick(random, settlement.members()), gameTick, affinity, traits);
-		newcomer.setLoyalty(50);
-		// They walk in by the Town Center.
-		newcomer.setPosition(settlement.anchorX() + 0.5, settlement.anchorY() + 1, settlement.anchorZ() + 2.5);
-		settlement.add(newcomer);
+			Role affinity = TRADES[random.nextInt(TRADES.length)];
+			EnumSet<Trait> traits = EnumSet.of(Trait.values()[random.nextInt(Trait.values().length)]);
+			Citizen newcomer = new Citizen(new CitizenId(random.next()), CitizenNames.pick(random, settlement.members()), gameTick, affinity, traits);
+			newcomer.setLoyalty(50);
+			// They walk in by the Town Center.
+			newcomer.setPosition(settlement.anchorX() + 0.5, settlement.anchorY() + 1, settlement.anchorZ() + 2.5);
+			settlement.add(newcomer);
+			events.publish(new CitizenBornEvent(settlement.id(), settlement.founder(), newcomer.id(), newcomer.name(), true));
+		}
 		RoleAssignment.assign(settlement.members());
-		events.publish(new CitizenBornEvent(settlement.id(), settlement.founder(), newcomer.id(), newcomer.name(), true));
 	}
 }

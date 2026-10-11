@@ -45,9 +45,12 @@ class RecruitmentTest {
 	}
 
 	@Test
-	void acceptanceDependsOnCircumstances() {
-		assertTrue(Recruitment.acceptChance(true, false) > Recruitment.acceptChance(false, false));
-		assertTrue(Recruitment.acceptChance(false, true) < Recruitment.acceptChance(false, false));
+	void aVillagerShownTheScrollAlwaysComes() {
+		assertEquals(1.0, Recruitment.acceptChance(false, true));
+		for (int i = 0; i < Recruitment.MAX_EXPEDITION_SIZE; i++) {
+			// Employed, and asked at night: the worst case there used to be.
+			assertInstanceOf(Recruitment.Accepted.class, simulation.recruit(PLAYER, new UUID(9, i), "farmer", null, true, 0, 0, 0));
+		}
 	}
 
 	@Test
@@ -61,30 +64,6 @@ class RecruitmentTest {
 		assertEquals(Role.FARMER, first.affinity());
 		assertEquals(Role.LABORER, second.affinity());
 		assertNotEquals(first.id(), second.id());
-	}
-
-	@Test
-	void refusedVillagerCannotBeAskedAgainForADay() {
-		UUID villager = new UUID(3, 3);
-		Recruitment.Result result;
-		do {
-			// Night-time employed villagers refuse 60% of the time; retry on fresh state until one does.
-			result = simulation.recruit(PLAYER, villager = new UUID(3, villager.getLeastSignificantBits() + 1), "farmer", null, true, 0, 0, 0);
-		} while (!(result instanceof Recruitment.Refused));
-		assertEquals(0, ((Recruitment.Refused) result).retryInTicks());
-
-		int sizeBefore = simulation.expeditionOf(PLAYER).map(Expedition::size).orElse(0);
-		for (int i = 0; i < 50; i++) {
-			Recruitment.Refused again = assertInstanceOf(Recruitment.Refused.class,
-					simulation.recruit(PLAYER, villager, "none", null, false, 0, 0, 0));
-			assertTrue(again.retryInTicks() > 0);
-		}
-		assertEquals(sizeBefore, simulation.expeditionOf(PLAYER).map(Expedition::size).orElse(0));
-
-		headless.runTicks(Recruitment.REFUSAL_COOLDOWN_TICKS + 1);
-		Recruitment.Result afterCooldown = simulation.recruit(PLAYER, villager, "none", null, false, 0, 0, 0);
-		assertTrue(afterCooldown instanceof Recruitment.Accepted
-				|| afterCooldown instanceof Recruitment.Refused refused && refused.retryInTicks() == 0);
 	}
 
 	@Test

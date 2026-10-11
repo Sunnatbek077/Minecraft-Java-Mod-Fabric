@@ -67,6 +67,7 @@ final class FoundingHandler {
 		return thread;
 	});
 	private final Map<UUID, BlockPos> surveying = new HashMap<>();
+	private final java.util.Set<com.sunnatbek.villagerciv.api.SettlementId> expanding = new java.util.HashSet<>();
 	private final Map<UUID, Proposal> proposals = new HashMap<>();
 
 	FoundingHandler(MinecraftServer server, Simulation simulation, EmbodimentController embodiment) {
@@ -124,6 +125,120 @@ final class FoundingHandler {
 		});
 	}
 
+	/**
+	 * The patron offers a town its Expansion Charter. If the town may take it, the land out to
+	 * the new bounds is surveyed (over several ticks, like a founding survey) and the settlement
+	 * is then enlarged; the charter is used up when that is done.
+	 */
+	void proposeExpansion(ServerPlayer player, Settlement settlement, ItemStack stack) {
+		String leader = leaderOf(settlement);
+		if (settlement.expansion() > 0) {
+			player.sendSystemMessage(Component.translatable("message.villagerciv.expand.already", leader), true);
+			return;
+		}
+		if (!settlement.mayExpand()) {
+			player.sendSystemMessage(Component.translatable("message.villagerciv.expand.too_small", leader), true);
+			return;
+		}
+		if (!expanding.add(settlement.id())) {
+			player.sendSystemMessage(Component.translatable("message.villagerciv.expand.busy"), true);
+			return;
+		}
+		stack.consume(1, player);
+		player.sendSystemMessage(Component.translatable("message.villagerciv.expand.surveying", leader));
+		UUID playerId = player.getUUID();
+		expand(settlement, () -> {
+			ServerPlayer online = server.getPlayerList().getPlayer(playerId);
+			if (online != null) {
+				online.sendSystemMessage(Component.translatable(
+						settlement.wallPieces() > 0 ? "message.villagerciv.expand.done" : "message.villagerciv.expand.done.open", leader));
+			}
+		});
+	}
+
+	/** Surveys the wider land round a settlement and enlarges it; {@code then} runs on the server thread afterwards. */
+	void expand(Settlement settlement, Runnable then) {
+		ServerLevel level = server.overworld();
+		TerrainSnapshot snapshot = new TerrainSnapshot(settlement.anchorX(), settlement.anchorZ(), Founding.EXPANDED_RADIUS);
+		int[] next = {0};
+		simulation.scheduler().submit("expansion-survey", TaskPriority.SETTLEMENT_AI, context -> {
+			BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+			while (next[0] < snapshot.columnCount()) {
+				int end = Math.min(next[0] + SNAPSHOT_BATCH, snapshot.columnCount());
+				for (; next[0] < end; next[0]++) {
+					copyColumn(level, snapshot, next[0], cursor);
+				}
+				if (!context.hasBudget()) {
+					return TaskResult.CONTINUE;
+				}
+			}
+			worker.execute(() -> {
+				SiteSurvey.Result result = SiteSurvey.analyse(snapshot);
+				server.execute(() -> {
+					expanding.remove(settlement.id());
+					simulation.expand(settlement, result.plots());
+					then.run();
+				});
+			});
+			return TaskResult.DONE;
+		});
+	}
+
+	/**
+	 * Looks over a settlement's land again, as it is now. The first survey saw the land as it
+	 * lay: hills, hollows, ground too far off to be loaded. Since then the levellers have been
+	 * at it, and what was too rough to build on may be good ground. Runs in the background, like
+	 * the first; nothing but the settlement's map of buildable ground changes.
+	 */
+	void resurvey(Settlement settlement) {
+		if (!expanding.add(settlement.id())) {
+			return;
+		}
+		ServerLevel level = server.overworld();
+		TerrainSnapshot snapshot = new TerrainSnapshot(settlement.anchorX(), settlement.anchorZ(),
+				settlement.expansion() > 0 ? Founding.EXPANDED_RADIUS : Founding.SURVEY_RADIUS);
+		int[] next = {0};
+		simulation.scheduler().submit("land-resurvey", TaskPriority.BACKGROUND, context -> {
+			BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+			while (next[0] < snapshot.columnCount()) {
+				int end = Math.min(next[0] + SNAPSHOT_BATCH, snapshot.columnCount());
+				for (; next[0] < end; next[0]++) {
+					int x = snapshot.blockX(next[0]);
+					int z = snapshot.blockZ(next[0]);
+					// Ground that was buildable and cannot be seen just now is not written off.
+					if (!level.hasChunk(x >> 4, z >> 4) && settlement.plots().isBuildable(x, z)) {
+						snapshot.set(next[0], settlement.grade(), Surface.SOIL);
+					} else {
+						copyColumn(level, snapshot, next[0], cursor);
+					}
+				}
+				if (!context.hasBudget()) {
+					return TaskResult.CONTINUE;
+				}
+			}
+			worker.execute(() -> {
+				SiteSurvey.Result result = SiteSurvey.analyse(snapshot);
+				server.execute(() -> {
+					expanding.remove(settlement.id());
+					int before = settlement.plots().buildableCount();
+					settlement.setSurvey(settlement.siteScore(), result.plots());
+					VillagerCivMod.LOGGER.info("{} looked over its land again: {} buildable columns, {} before",
+							settlement.name(), result.plots().buildableCount(), before);
+				});
+			});
+			return TaskResult.DONE;
+		});
+	}
+
+	private static String leaderOf(Settlement settlement) {
+		for (com.sunnatbek.villagerciv.sim.Citizen citizen : settlement.members()) {
+			if (citizen.role() == com.sunnatbek.villagerciv.sim.Role.LEADER) {
+				return citizen.name();
+			}
+		}
+		return "The Leader";
+	}
+
 	private static void copyColumn(ServerLevel level, TerrainSnapshot snapshot, int index, BlockPos.MutableBlockPos cursor) {
 		int x = snapshot.blockX(index);
 		int z = snapshot.blockZ(index);
@@ -134,6 +249,11 @@ final class FoundingHandler {
 		}
 		int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z) - 1;
 		BlockState state = level.getBlockState(cursor.set(x, top, z));
+		// A street lamp is not a building: the ground it stands on is what counts.
+		for (int down = 0; down < 4 && Lamplighter.isLampPart(state); down++) {
+			top--;
+			state = level.getBlockState(cursor.set(x, top, z));
+		}
 		Surface surface = classify(state);
 		// Under a tree the ground level is what matters, not the canopy.
 		int height = surface == Surface.TREE ? level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1 : top;

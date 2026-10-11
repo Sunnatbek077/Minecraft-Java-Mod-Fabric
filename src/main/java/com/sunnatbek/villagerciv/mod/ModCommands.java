@@ -57,7 +57,11 @@ final class ModCommands {
 				.then(Commands.literal("list").executes(ModCommands::list))
 				.then(Commands.literal("expeditions").executes(ModCommands::expeditions))
 				.then(Commands.literal("settlements").executes(ModCommands::settlements))
-				.then(Commands.literal("export").executes(ModCommands::export));
+				.then(Commands.literal("export").executes(ModCommands::export))
+				// Sets down every house design in a row to the east of the player, to be looked at.
+				.then(Commands.literal("showcase").executes(context -> showcase(context, null))
+						.then(Commands.argument("design", StringArgumentType.word()).executes(context ->
+								showcase(context, StringArgumentType.getString(context, "design")))));
 
 		dispatcher.register(root.then(preset).then(danger).then(debug));
 	}
@@ -169,6 +173,26 @@ final class ModCommands {
 		}
 		reply(context, text.toString());
 		return simulation.state().settlements().size();
+	}
+
+	private static int showcase(CommandContext<CommandSourceStack> context, String only) {
+		Simulation simulation = simulation(context);
+		EmbodimentController embodiment = VillagerCivMod.embodiment();
+		if (simulation == null || embodiment == null) {
+			return 0;
+		}
+		net.minecraft.core.BlockPos at = net.minecraft.core.BlockPos.containing(context.getSource().getPosition()).below().east(3);
+		int built = 0;
+		for (com.sunnatbek.villagerciv.build.Blueprint blueprint : simulation.blueprints().all()) {
+			boolean wanted = only == null ? blueprint.category() == com.sunnatbek.villagerciv.build.Blueprint.Category.HOUSING
+					: blueprint.id().equals(only);
+			if (wanted) {
+				embodiment.buildSites().showcase(context.getSource().getLevel(), blueprint, at);
+				at = at.east(blueprint.width() + 2);
+				built++;
+			}
+		}
+		return reply(context, built == 0 ? "No such design." : "Set down " + built + " design(s) to the east.");
 	}
 
 	private static int export(CommandContext<CommandSourceStack> context) {

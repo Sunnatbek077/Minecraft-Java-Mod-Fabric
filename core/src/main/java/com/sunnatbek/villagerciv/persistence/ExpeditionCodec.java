@@ -104,6 +104,11 @@ final class ExpeditionCodec {
 		if (citizen.carrying() != null) {
 			json.addProperty("carrying", citizen.carrying().name());
 			json.addProperty("carryingAmount", citizen.carryingAmount());
+			if (!citizen.finds().isEmpty()) {
+				com.google.gson.JsonObject finds = new com.google.gson.JsonObject();
+				citizen.finds().forEach(finds::addProperty);
+				json.add("finds", finds);
+			}
 		}
 		return json;
 	}
@@ -144,6 +149,11 @@ final class ExpeditionCodec {
 		}
 		if (json.has("carrying")) {
 			citizen.carry(Commodity.valueOf(json.get("carrying").getAsString()), json.get("carryingAmount").getAsInt());
+			if (json.has("finds")) {
+				java.util.Map<String, Integer> finds = new java.util.LinkedHashMap<>();
+				json.getAsJsonObject("finds").entrySet().forEach(entry -> finds.put(entry.getKey(), entry.getValue().getAsInt()));
+				citizen.setFinds(finds);
+			}
 		}
 		return citizen;
 	}

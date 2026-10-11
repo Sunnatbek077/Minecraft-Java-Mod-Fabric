@@ -1,6 +1,9 @@
 package com.sunnatbek.villagerciv.sim;
 
 import com.sunnatbek.villagerciv.api.CitizenLeftEvent;
+import com.sunnatbek.villagerciv.build.Blueprint;
+import com.sunnatbek.villagerciv.build.Building;
+import com.sunnatbek.villagerciv.build.TownPlan;
 import com.sunnatbek.villagerciv.harness.HeadlessSimulation;
 import com.sunnatbek.villagerciv.persistence.SaveStore;
 import com.sunnatbek.villagerciv.sim.TerrainSnapshot.Surface;
@@ -96,6 +99,50 @@ class LaborTest {
 
 		Settlement hungry = settlementWithFood(0);
 		assertTrue(count(hungry, JobType.FARM) > farmersWhenFed, "more farmers when food is short");
+	}
+
+	@Test
+	void handsLeaveAFullGranaryForWhateverIsShort() {
+		Settlement settlement = settle(8, Surface.SOIL);
+		simulation.adoptPlan(settlement, Policy.AGRARIAN);
+		settlement.ledger().add(Commodity.FOOD, 30_000);
+		settlement.ledger().add(Commodity.WOOD, 30_000);
+		settlement.ledger().add(Commodity.STONE, 30_000);
+		for (int day = 0; day < 30 && settlement.size() < 24; day++) {
+			headless.runDays(1);
+		}
+		// Plenty to eat and to burn, and not a stone left.
+		settlement.ledger().take(Commodity.STONE, settlement.ledger().available(Commodity.STONE));
+		headless.runTicks(Labor.CYCLE_TICKS * 40);
+		long farmers = count(settlement, JobType.FARM);
+		long miners = count(settlement, JobType.MINE);
+		assertTrue(farmers >= 1 && farmers * 4 <= settlement.size(), "a few farmers keep a full granary full: " + farmers + " of " + settlement.size());
+		assertTrue(miners > farmers, "and the stone that is short gets the hands: " + miners + " miners, " + farmers + " farmers");
+		assertTrue(settlement.sites().stream().filter(site -> site.type() == JobType.MINE).count() >= 2,
+				"with a second mine opened for them");
+	}
+
+	@Test
+	void aPenTakesOneHerderWhoBringsInFood() {
+		Settlement settlement = settle(8, Surface.SOIL);
+		headless.runTicks(Labor.CYCLE_TICKS * 3);
+		assertEquals(0, count(settlement, JobType.HERD), "no pen, no herder");
+
+		Blueprint design = simulation.blueprints().get("cattle_pen").orElseThrow();
+		Building pen = TownPlan.freeSite(settlement, design, 48);
+		assertNotNull(pen);
+		pen.setStage(Building.Stage.COMPLETE);
+		headless.runTicks(Labor.CYCLE_TICKS * 3);
+		assertEquals(1, count(settlement, JobType.HERD), "one herder to a pen");
+		Citizen herder = settlement.members().stream().filter(c -> c.job() == JobType.HERD).findFirst().orElseThrow();
+		assertEquals(pen.id(), herder.jobSite());
+
+		// Nobody is watching, so its work is counted straight into the store.
+		herder.setWorkBank(0);
+		int food = settlement.ledger().onHand(Commodity.FOOD);
+		settlement.ledger().add(Commodity.FOOD, 1_000);
+		headless.runTicks(Labor.CYCLE_TICKS * 6);
+		assertTrue(herder.workBank() > 0 || settlement.ledger().onHand(Commodity.FOOD) > food, "the herd brings food in");
 	}
 
 	private Settlement settlementWithFood(int food) {

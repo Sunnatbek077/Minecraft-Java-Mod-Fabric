@@ -1,6 +1,7 @@
 {
 	"type": "minecraft:crafting_shapeless",
 	"category": "misc",
+	"group": "villagerciv_industry_plan",
 	"ingredients": [
 		"villagerciv:blank_plan",
 		"minecraft:iron_pickaxe"

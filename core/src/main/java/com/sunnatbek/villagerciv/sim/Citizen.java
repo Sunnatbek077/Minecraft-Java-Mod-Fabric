@@ -37,6 +37,7 @@ public final class Citizen {
 	private boolean guard;
 	private boolean armored;
 	private int post = NO_POST;
+	private final java.util.Map<String, Integer> finds = new java.util.LinkedHashMap<>();
 	private int postPlace;
 	private int home = NO_HOME;
 	private int bed;
@@ -281,6 +282,23 @@ public final class Citizen {
 	public void setWorkBank(int workBank) {
 		this.workBank = workBank;
 		changed();
+	}
+
+	/**
+	 * The particular things in the citizen's pack, by item id: a miner's coal, lapis and diamonds
+	 * as such, rather than as so many units of ore. Kept with the record, so that a load is still
+	 * what it was when the world is opened again.
+	 */
+	public java.util.Map<String, Integer> finds() {
+		return Collections.unmodifiableMap(finds);
+	}
+
+	public void setFinds(java.util.Map<String, Integer> items) {
+		if (!finds.equals(items)) {
+			finds.clear();
+			finds.putAll(items);
+			changed();
+		}
 	}
 
 	/** What the citizen is carrying back to the stockpile, or null. */

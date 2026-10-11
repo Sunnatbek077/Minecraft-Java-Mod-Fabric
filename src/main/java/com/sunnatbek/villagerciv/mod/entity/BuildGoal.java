@@ -38,6 +38,9 @@ final class BuildGoal extends Goal {
 	private int travelled;
 	private int repathIn;
 	private int waitUntilTick;
+	/** Reckoned work on a site that is not loaded: as many steps, as often, as a builder nobody is watching does. */
+	private static final int UNSEEN_INTERVAL_TICKS = 20;
+	private static final int UNSEEN_STEPS = 4;
 	private boolean finished;
 
 	BuildGoal(CitizenEntity entity) {
@@ -67,6 +70,7 @@ final class BuildGoal extends Goal {
 
 	@Override
 	public void start() {
+		trace("starts");
 		finished = false;
 		stand = null;
 		timer = 0;
@@ -76,6 +80,7 @@ final class BuildGoal extends Goal {
 
 	@Override
 	public void stop() {
+		trace("stops: finished=" + finished + " project=" + (project() != null));
 		entity.getNavigation().stop();
 		entity.citizen().setActivity(Activity.IDLE);
 	}
@@ -96,19 +101,35 @@ final class BuildGoal extends Goal {
 		BuildSites sites = embodiment.buildSites();
 		Settlement settlement = entity.settlement();
 		Citizen citizen = entity.citizen();
-		if (stand == null) {
-			if (!sites.isLoaded(level, building)) {
-				pause();
-				return;
+		if (!sites.isAlive(level, building)) {
+			// The site lies beyond where the game is running things: the far side of a wide
+			// wall, say. The work goes on all the same, reckoned as it is when nobody is near,
+			// and shows in the world when someone comes that way. The builder stays where it is.
+			stand = null;
+			entity.getNavigation().stop();
+			citizen.setActivity(Activity.AT_WORK);
+			if (--timer <= 0) {
+				timer = UNSEEN_INTERVAL_TICKS;
+				building.advance(Math.max(1, UNSEEN_STEPS * Labor.efficiencyPercent(settlement, citizen, JobType.BUILD) / 100));
+				Labor.reportProgress(citizen, embodiment.gameTick());
 			}
+			return;
+		}
+		if (stand == null) {
 			stand = sites.standPoint(level, building);
 		}
 
 		boolean there = entity.distanceToSqr(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5) <= REACH_SQR;
+		if (entity.tickCount % 100 == 0) {
+			trace("on #" + building.id() + " there=" + there + " travelled=" + travelled + " timer=" + timer + " stand=" + stand.toShortString());
+		}
 		citizen.setActivity(there ? Activity.BUILDING : Activity.WALKING);
 		if (!there) {
 			if (++travelled > TRAVEL_TIMEOUT_TICKS) {
-				pause();
+				// Cannot find the way to its own building site: it is set down there.
+				trace("set down at site #" + building.id() + " " + stand.toShortString());
+				entity.teleportTo(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5);
+				travelled = 0;
 			} else if (--repathIn <= 0 && embodiment.takePathSlot()) {
 				repathIn = REPATH_INTERVAL_TICKS;
 				entity.getNavigation().moveTo(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5, 0.6);
@@ -129,6 +150,7 @@ final class BuildGoal extends Goal {
 			}
 			BuildSites.Outcome outcome = sites.applyNext(level, settlement, building);
 			if (outcome == BuildSites.Outcome.NOT_NOW) {
+				trace("cannot apply " + kind + " at #" + building.id());
 				pause();
 				return;
 			}
@@ -142,6 +164,13 @@ final class BuildGoal extends Goal {
 			}
 		}
 		Labor.reportProgress(citizen, embodiment.gameTick());
+	}
+
+	/** A line in the log for the unattended test run; nothing otherwise. */
+	private void trace(String what) {
+		if (Long.getLong("villagerciv.autotest", 0L) > 0) {
+			VillagerCivMod.LOGGER.info("AUTOTEST   builder {} at {}: {}", entity.citizen().name(), entity.blockPosition().toShortString(), what);
+		}
 	}
 
 	private void pause() {

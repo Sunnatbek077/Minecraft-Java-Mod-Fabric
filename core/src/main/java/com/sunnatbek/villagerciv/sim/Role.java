@@ -18,12 +18,15 @@ public enum Role {
 	/** Cuts stone for the builders. */
 	MASON,
 	/** Keeps the market: trades what the settlement has too much of for what it is short of. */
-	MERCHANT;
+	MERCHANT,
+	/** Keeps the animals: breeds them in the settlement's pens and brings in what they yield. */
+	HERDER;
 
 	/** The role a vanilla villager profession (e.g. {@code "farmer"}) leans towards. */
 	public static Role affinityOfProfession(String profession) {
 		return switch (profession) {
-			case "farmer", "fisherman", "shepherd", "butcher", "leatherworker" -> FARMER;
+			case "farmer", "fisherman" -> FARMER;
+			case "shepherd", "butcher", "leatherworker" -> HERDER;
 			case "fletcher" -> LUMBERJACK;
 			case "toolsmith" -> BLACKSMITH;
 			case "mason" -> MASON;

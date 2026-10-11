@@ -11,6 +11,8 @@ public final class SitePicker {
 	/** Keep work sites clear of the Town Center and of each other. */
 	private static final int MIN_DISTANCE = 12;
 	private static final int MAX_DISTANCE = 40;
+	/** How much further out an enlarged settlement puts its fields, groves and mines. */
+	private static final int EXPANDED_EXTRA = 40;
 	private static final int MARGIN = 2;
 	private static final int STEP = 3;
 
@@ -56,7 +58,8 @@ public final class SitePicker {
 		// its few people are better kept together.
 		if (settlement.stage().ordinal() >= SettlementStage.SETTLEMENT.ordinal()) {
 			for (JobType type : JobType.values()) {
-				if (!type.hasWorkSite() || settlement.status(type.product()) == StockStatus.OK) {
+				// Short of it, or simply wanting more hands at it than there are places for.
+				if (!type.hasWorkSite() || (settlement.status(type.product()) == StockStatus.OK && !settlement.wishesSite(type))) {
 					continue;
 				}
 				int sites = 0;
@@ -134,7 +137,9 @@ public final class SitePicker {
 	private static boolean place(Settlement settlement, JobType type) {
 		Settlement.PlotMap plots = settlement.plots();
 		int startAngle = type.ordinal() * 120;
-		for (int distance = MIN_DISTANCE; distance <= MAX_DISTANCE; distance += STEP) {
+		// From the edge inwards: fields, groves and mines lie round the houses, not among them,
+		// and the middle of the settlement is left for its streets.
+		for (int distance = MAX_DISTANCE + EXPANDED_EXTRA * settlement.expansion(); distance >= MIN_DISTANCE; distance -= STEP) {
 			for (int turn = 0; turn < 360; turn += 15) {
 				double angle = Math.toRadians(startAngle + turn);
 				int x = settlement.anchorX() + (int) Math.round(Math.cos(angle) * distance);
@@ -160,6 +165,16 @@ public final class SitePicker {
 					return false;
 				}
 			}
+		}
+		// Not across the way of the four streets that leave the Town Center, laid or not: a field
+		// on one of those lines, with a grove and a mine on two others, leaves the settlement
+		// with a single street and no room for a fifth house.
+		int dx0 = Math.abs(x - settlement.anchorX());
+		int dz0 = Math.abs(z - settlement.anchorZ());
+		int reach = com.sunnatbek.villagerciv.build.TownPlan.STREET_LENGTH + 2;
+		int beside = half + Street.HALF_WIDTH + 1;
+		if ((dx0 <= beside && dz0 <= reach + half) || (dz0 <= beside && dx0 <= reach + half)) {
+			return false;
 		}
 		// Not on a building's lot or across a street: the town plan was there first.
 		for (Building building : settlement.buildings()) {

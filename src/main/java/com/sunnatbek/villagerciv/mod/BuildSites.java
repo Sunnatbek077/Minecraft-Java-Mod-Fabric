@@ -38,12 +38,12 @@ import java.util.Set;
  */
 public final class BuildSites {
 	/** How high above a lot's level the ground is cut away, and how deep below it a hollow is filled. */
-	private static final int LOT_CUT = 10;
-	private static final int LOT_FILL = 16;
-	/** How far along the wall line, and how far to either side of it, the ground is looked at for a wall's level. */
-	private static final int WALL_LOOK_ALONG = 6;
-	private static final int WALL_LOOK_BESIDE = 2;
-	private static final int WALL_MAX_RAISE = 8;
+	private static final int LOT_CUT = 40;
+	private static final int LOT_FILL = 24;
+	/** A wall standing this far from the settlement's level, or further, is taken down and built again at it. */
+	private static final int WALL_OFF_GRADE = 2;
+	/** A house is left alone a little longer: two blocks either way keeps any two buildings within four of each other. */
+	private static final int HOUSE_OFF_GRADE = 3;
 	private static final int WALL_FOOTING_DEPTH = 16;
 	private static final Rotation[] ROTATIONS = {
 			Rotation.NONE, Rotation.CLOCKWISE_90, Rotation.CLOCKWISE_180, Rotation.COUNTERCLOCKWISE_90
@@ -172,6 +172,37 @@ public final class BuildSites {
 				building.z() + ConstructionPlan.rotatedZ(blueprint, building.rotation(), head.x(), standZ));
 	}
 
+	/**
+	 * Sets a design down in the world all at once, front to the south, with its north-west corner
+	 * at {@code origin} and its floor in the ground there. For looking at designs; it belongs to
+	 * no settlement and nothing is charged for it.
+	 */
+	void showcase(ServerLevel level, Blueprint blueprint, BlockPos origin) {
+		for (int pass = 0; pass < 2; pass++) {
+			for (int y = 0; y < blueprint.height(); y++) {
+				for (int z = 0; z < blueprint.depth(); z++) {
+					for (int x = 0; x < blueprint.width(); x++) {
+						char cell = blueprint.cell(x, y, z);
+						boolean late = cell != Blueprint.LEAVE && cell != Blueprint.CLEAR && blueprint.isLate(cell);
+						if (cell == Blueprint.LEAVE || late != (pass == 1) || (cell == Blueprint.CLEAR && pass == 1)) {
+							continue;
+						}
+						BlockPos pos = origin.offset(x, y, z);
+						BlockState wanted = cell == Blueprint.CLEAR ? Blocks.AIR.defaultBlockState() : state(blueprint.palette().get(cell));
+						if (wanted == null) {
+							continue;
+						}
+						if (wanted.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF) || wanted.hasProperty(BlockStateProperties.BED_PART)) {
+							level.setBlock(pos, wanted, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+						} else {
+							level.setBlock(pos, Block.updateFromNeighbourShapes(wanted, level, pos), Block.UPDATE_ALL);
+						}
+					}
+				}
+			}
+		}
+	}
+
 	/** Brings a building that was built from an older version of its design up to date. */
 	void checkDesign(Settlement settlement, Building building) {
 		plan(settlement, building);
@@ -280,6 +311,17 @@ public final class BuildSites {
 		return new BlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
 	}
 
+	/**
+	 * Whether a citizen can stand and work at this building's site: its ground is loaded, and
+	 * near enough to a player for the game to be running the creatures on it. A body sent to
+	 * ground that is loaded but not run simply stops existing there.
+	 */
+	public boolean isAlive(ServerLevel level, Building building) {
+		return isLoaded(level, building)
+				&& level.isPositionEntityTicking(new BlockPos(building.x() + building.sizeX() / 2, 0, building.z() + building.sizeZ() / 2))
+				&& level.isPositionEntityTicking(standPoint(level, building));
+	}
+
 	public boolean isLoaded(ServerLevel level, Building building) {
 		return level.hasChunk(building.x() >> 4, building.z() >> 4)
 				&& level.hasChunk((building.x() + building.sizeX() - 1) >> 4, (building.z() + building.sizeZ() - 1) >> 4);
@@ -299,10 +341,8 @@ public final class BuildSites {
 			return Outcome.SKIPPED;
 		}
 		if (building.y() == Building.Y_UNKNOWN) {
-			// The lot's level is that of its middle; the footprint is brought to it before building.
-			building.setY(isWallRun(building) ? wallLevel(level, building)
-					: level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
-							building.x() + building.sizeX() / 2, building.z() + building.sizeZ() / 2) - 1);
+			// Everything stands at the settlement's one level; the footprint is brought to it before building.
+			building.setY(settlement.grade());
 		}
 		ConstructionPlan.Step step = plan.steps().get(building.applied());
 		Outcome outcome = switch (step.kind()) {
@@ -321,63 +361,48 @@ public final class BuildSites {
 
 	/** A stretch of palisade, as opposed to a gate or a tower: those stand where people walk, on the ground as it is. */
 	private static boolean isWallRun(Building building) {
-		return building.category() == Blueprint.Category.DEFENSE && building.blueprint().startsWith("palisade_")
-				&& Character.isDigit(building.blueprint().charAt(building.blueprint().length() - 1));
+		return building.category() == Blueprint.Category.DEFENSE && com.sunnatbek.villagerciv.build.WallDesigns.isRun(building.blueprint());
 	}
 
 	/**
-	 * The level a stretch of wall is built from. Not the ground under its own middle: a wall that
-	 * dipped into every pit it crossed would be a wall with a way over it. It is the highest
-	 * natural ground found close beside the wall line, over the stretch itself and a little way
-	 * past both its ends, so the top runs on across a hollow and the footing fills what is below.
+	 * A finished building that stands off the settlement's level (it was built when lots and
+	 * walls still followed the land, up a bank or down in a hollow) is brought to it: what stands
+	 * is taken down, and it is built again from the right height, the ground cut or filled to
+	 * suit. A wall is held to the level more closely than a house. Looked at once for each
+	 * building in a session, and by day, when nobody is in bed in it.
+	 *
+	 * @param salvage takes what lay in the building's chests, to be carried to the storehouse
 	 */
-	private static int wallLevel(ServerLevel level, Building building) {
-		boolean alongX = building.sizeX() >= building.sizeZ();
-		int length = alongX ? building.sizeX() : building.sizeZ();
-		int own = groundLevel(level, building.x() + building.sizeX() / 2, building.z() + building.sizeZ() / 2);
-		int highest = own;
-		for (int along = -WALL_LOOK_ALONG; along < length + WALL_LOOK_ALONG; along++) {
-			for (int beside = -WALL_LOOK_BESIDE; beside <= WALL_LOOK_BESIDE; beside += 2 * WALL_LOOK_BESIDE) {
-				int x = alongX ? building.x() + along : building.x() + beside;
-				int z = alongX ? building.z() + beside : building.z() + along;
-				if (level.hasChunk(x >> 4, z >> 4)) {
-					highest = Math.max(highest, groundLevel(level, x, z));
+	void bringToGrade(ServerLevel level, Settlement settlement, Building building, java.util.function.Consumer<List<net.minecraft.world.item.ItemStack>> salvage) {
+		// The main storehouse shows the stock itself, chest by chest: it is left where it stands.
+		if (building.stage() != Building.Stage.COMPLETE || building.y() == Building.Y_UNKNOWN || building == settlement.mainStore()
+				|| wallsLookedAt.contains(building) || !isLoaded(level, building) || !WorkDay.isDay(level)) {
+			return;
+		}
+		wallsLookedAt.add(building);
+		int target = settlement.grade();
+		int allowed = building.category() == Blueprint.Category.DEFENSE ? WALL_OFF_GRADE : HOUSE_OFF_GRADE;
+		Plan plan = Math.abs(target - building.y()) >= allowed ? plan(settlement, building) : null;
+		if (plan == null) {
+			return;
+		}
+		for (ConstructionPlan.Step step : plan.steps()) {
+			if (step.kind() == ConstructionPlan.Kind.PLACE) {
+				BlockPos pos = new BlockPos(step.x(), building.y() + step.dy(), step.z());
+				if (plan.ownBlocks().contains(level.getBlockState(pos).getBlock())) {
+					List<net.minecraft.world.item.ItemStack> goods = PersonalChests.empty(level, pos);
+					if (!goods.isEmpty()) {
+						salvage.accept(goods);
+					}
+					level.removeBlockEntity(pos);
+					// Without asking the neighbours: a lantern whose beam goes first is not to fall as an item.
+					level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
 				}
 			}
 		}
-		// Up to a point: against a cliff the wall keeps to its own ground rather than climbing it.
-		return Math.min(highest, own + WALL_MAX_RAISE);
-	}
-
-	/** Height of the natural ground in a column, looking down past whatever has been built or grown on it. */
-	private static int groundLevel(ServerLevel level, int x, int z) {
-		int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
-		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos(x, y, z);
-		for (int down = 0; down < 12 && !WorkSites.isGround(level.getBlockState(cursor)); down++) {
-			cursor.move(0, -1, 0);
-		}
-		return cursor.getY();
-	}
-
-	/**
-	 * A finished stretch of wall that was built down in a hollow is raised to the level it should
-	 * have had: built again from higher up, on top of what stands, which becomes its footing.
-	 * Looked at once for each stretch in a session.
-	 */
-	void raiseSunkenWall(ServerLevel level, Settlement settlement, Building building) {
-		if (!isWallRun(building) || building.stage() != Building.Stage.COMPLETE || building.y() == Building.Y_UNKNOWN
-				|| !wallsLookedAt.add(building) || !isLoaded(level, building)) {
-			if (isWallRun(building) && building.stage() == Building.Stage.COMPLETE && !isLoaded(level, building)) {
-				wallsLookedAt.remove(building); // not seen yet: look when it is
-			}
-			return;
-		}
-		int target = wallLevel(level, building);
-		if (target - building.y() >= 2 && plan(settlement, building) != null) {
-			building.setY(target);
-			building.setCursors(building.progress(), 0);
-			building.setStage(Building.Stage.UNDER_REPAIR);
-		}
+		building.setY(target);
+		building.setCursors(building.progress(), 0);
+		building.setStage(Building.Stage.UNDER_REPAIR);
 	}
 
 	/** A street follows the land: each cell becomes path where it lies. */
@@ -402,9 +427,10 @@ public final class BuildSites {
 
 	private static Outcome level(ServerLevel level, Building building, BlockPos ground) {
 		if (isWallRun(building)) {
-			// A wall follows the land and stands on a footing of its own (see place): its ground
-			// is not cut or filled, and what stands on its line already is never felled as a tree.
-			return Outcome.SKIPPED;
+			// A wall stands on a footing of its own (see place), so a hollow under it is not
+			// filled; higher ground on its line is cut away. What stands on the line already is
+			// never felled as a tree: a palisade is made of logs.
+			return WorkSites.levelColumn(level, ground, LOT_CUT, 0) ? Outcome.CHANGED : Outcome.SKIPPED;
 		}
 		BlockState soil = level.getBlockState(ground);
 		boolean even = !soil.isAir() && !soil.canBeReplaced();

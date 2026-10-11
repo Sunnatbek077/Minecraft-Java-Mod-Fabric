@@ -18,7 +18,10 @@ import net.minecraft.world.entity.projectile.arrow.Arrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ChargedProjectiles;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.EnumSet;
 import java.util.List;
@@ -112,7 +115,7 @@ final class TowerPostGoal extends Goal {
 	private static final double[][] TOWER_PLACES = {{1.5, 1.5}, {3.5, 3.5}, {1.5, 3.5}};
 
 	private boolean onGate() {
-		return tower.blueprint().equals(Fortification.GATE);
+		return Fortification.isGate(tower.blueprint());
 	}
 
 	private double platformX() {
@@ -161,7 +164,7 @@ final class TowerPostGoal extends Goal {
 			return;
 		}
 		entity.getNavigation().stop();
-		if (target != null && (!target.isAlive() || !entity.hasLineOfSight(target))) {
+		if (target != null && (!target.isAlive() || !canSee(level, target))) {
 			lower();
 		}
 		if (target == null) {
@@ -194,12 +197,16 @@ final class TowerPostGoal extends Goal {
 			return;
 		}
 		Arrow arrow = new Arrow(level, entity, new ItemStack(Items.ARROW), new ItemStack(Items.CROSSBOW));
-		double dx = target.getX() - entity.getX();
-		double dz = target.getZ() - entity.getZ();
-		double dy = target.getY(0.5) - arrow.getY();
+		// Loosed from just outside the railing, on the side the target is on: from where the
+		// guard's hands are, the bolt would bury itself in the fence a step in front of it.
+		Vec3 from = loosePoint(target);
+		arrow.setPos(from.x, from.y, from.z);
+		double dx = target.getX() - from.x;
+		double dz = target.getZ() - from.z;
+		double dy = target.getY(0.5) - from.y;
 		double flat = Math.sqrt(dx * dx + dz * dz);
 		// Aimed a little high, as an arrow drops on the way.
-		arrow.shoot(dx, dy + flat * 0.12, dz, 2.2f, 4.0f);
+		arrow.shoot(dx, dy + flat * 0.08, dz, 2.4f, 2.0f);
 		arrow.setBaseDamage(4.0);
 		arrow.pickup = AbstractArrow.Pickup.DISALLOWED;
 		level.addFreshEntity(arrow);
@@ -219,6 +226,32 @@ final class TowerPostGoal extends Goal {
 		aim = 0;
 	}
 
+	/**
+	 * Where a shot at this target leaves the post: at the edge of the platform on the target's
+	 * side, a little out past the railing and at the height of the guard's eyes.
+	 */
+	private Vec3 loosePoint(Monster target) {
+		double centerX = tower.x() + tower.sizeX() / 2.0;
+		double centerZ = tower.z() + tower.sizeZ() / 2.0;
+		double dx = target.getX() - centerX;
+		double dz = target.getZ() - centerZ;
+		double length = Math.max(0.001, Math.sqrt(dx * dx + dz * dz));
+		// Far enough to clear a square platform even towards its corner.
+		double out = Math.max(tower.sizeX(), tower.sizeZ()) / 2.0 * 1.45 + 0.3;
+		return new Vec3(centerX + dx / length * out, platformY() + 1.6, centerZ + dz / length * out);
+	}
+
+	/**
+	 * Whether the guard has a shot at a monster. Judged from where the shot would leave the post,
+	 * not from the guard's own eyes: those are barely above the railing, and looking down past
+	 * it at anything on the ground they would be counted as blocked by the fence every time.
+	 */
+	private boolean canSee(ServerLevel level, Monster monster) {
+		Vec3 from = loosePoint(monster);
+		Vec3 to = new Vec3(monster.getX(), monster.getEyeY(), monster.getZ());
+		return level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, entity)).getType() == HitResult.Type.MISS;
+	}
+
 	private Monster nearestVisibleMonster(ServerLevel level) {
 		List<Monster> monsters = level.getEntitiesOfClass(Monster.class,
 				new AABB(entity.blockPosition()).inflate(SHOOT_RANGE, 12.0, SHOOT_RANGE), monster -> monster.isAlive());
@@ -226,7 +259,7 @@ final class TowerPostGoal extends Goal {
 		double nearestDistance = Double.MAX_VALUE;
 		for (Monster monster : monsters) {
 			double distance = monster.distanceToSqr(entity);
-			if (distance < nearestDistance && entity.hasLineOfSight(monster)) {
+			if (distance < nearestDistance && canSee(level, monster)) {
 				nearest = monster;
 				nearestDistance = distance;
 			}

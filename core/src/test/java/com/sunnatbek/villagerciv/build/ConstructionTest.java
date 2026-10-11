@@ -77,7 +77,8 @@ class ConstructionTest {
 							assertTrue(blueprint.isLate(cell), id + ": doors go in last");
 							assertTrue(blueprint.palette().get(blueprint.cell(x, y + 1, z)).contains("_door[half=upper"), id + ": door top above bottom");
 							// The main storehouse stands back from the street, behind its yard.
-							assertTrue(z >= blueprint.depth() - 2 || id.startsWith(Blueprint.MAIN_STORE), id + ": the door is in the front wall");
+							// Behind at most a porch, a strip of garden and the steps up to it.
+							assertTrue(z >= blueprint.depth() - 4 || id.startsWith(Blueprint.MAIN_STORE), id + ": the door is in the front wall");
 						}
 						if (state.contains("_bed[") && state.contains("part=head")) {
 							bedHeads++;
@@ -97,7 +98,13 @@ class ConstructionTest {
 			assertEquals(bedHeads, bedFeet, id);
 			// Everything people go into closes with a door: a home must keep the night out. So does
 			// a gate. Only a sealed tower has none.
-			if (!id.equals(Fortification.TOWER)) {
+			// Nor do things that are not gone into at all: a well, a fountain.
+			if (Blueprint.isPen(id)) {
+				// A pen closes with a gate, and keeps animals in rather than the night out.
+				assertTrue(blueprint.palette().values().stream().anyMatch(state -> state.contains("_fence_gate[")), id + " has a gate");
+				char middle = blueprint.cell(blueprint.width() / 2, 1, blueprint.depth() / 2);
+				assertEquals(Blueprint.CLEAR, middle, id + ": the middle is bare, for the animals to be set down on");
+			} else if (!Fortification.isTower(id) && !id.equals("well") && !id.equals("fountain")) {
 				assertTrue(doors >= 1, id + " has a door");
 			}
 			assertEquals(blueprint.beds(), blueprint.bedHeads().size(), id);
@@ -371,24 +378,28 @@ class ConstructionTest {
 			assertEquals(house.beds(), heads.size(), id + ": as many beds as it says");
 			assertEquals(heads.size(), house.chests().size(), id + ": a chest for each bed");
 			int door = -1;
+			// The floor people live on: the ground floor, or the deck of a house on stilts.
+			int floor = heads.isEmpty() ? 1 : heads.getFirst().y();
 			for (int x = 0; x < house.width(); x++) {
 				for (int z = 0; z < house.depth(); z++) {
-					char cell = house.cell(x, 1, z);
+					char cell = house.cell(x, floor, z);
 					if (cell != Blueprint.LEAVE && cell != Blueprint.CLEAR && house.palette().get(cell).contains("_door[half=lower")) {
 						door = x;
-						assertEquals(Blueprint.CLEAR, house.cell(x, 1, z - 1), id + ": the way in is open");
-						assertEquals(Blueprint.CLEAR, house.cell(x, 2, z - 1), id + ": with headroom");
+						assertEquals(Blueprint.CLEAR, house.cell(x, floor, z - 1), id + ": the way in is open");
+						assertEquals(Blueprint.CLEAR, house.cell(x, floor + 1, z - 1), id + ": with headroom");
 					}
 				}
 			}
 			assertTrue(door >= 0, id + ": has a door");
 			for (Blueprint.Cell head : heads) {
-				assertEquals(1, head.y(), id + ": beds stand on the floor");
-				assertTrue(house.palette().get(house.cell(head.x(), 1, head.z() + 1)).contains("part=foot"), id + ": foot towards the door");
+				assertEquals(floor, head.y(), id + ": beds stand on the floor, all on the same one");
+				char under = house.cell(head.x(), floor - 1, head.z());
+				assertTrue(under != Blueprint.LEAVE && under != Blueprint.CLEAR, id + ": with a floor under them");
+				assertTrue(house.palette().get(house.cell(head.x(), floor, head.z() + 1)).contains("part=foot"), id + ": foot towards the door");
 				// The bedside, and a way from it to the door column, is kept clear.
 				int bedside = head.z() + 2;
 				for (int x = Math.min(head.x(), door); x <= Math.max(head.x(), door); x++) {
-					assertEquals(Blueprint.CLEAR, house.cell(x, 1, bedside), id + ": bedside row is free at " + x);
+					assertEquals(Blueprint.CLEAR, house.cell(x, floor, bedside), id + ": bedside row is free at " + x);
 				}
 				assertTrue(house.chests().stream().noneMatch(chest -> chest.x() == head.x() && chest.z() <= bedside), id + ": no chest on the bedside");
 			}
@@ -529,5 +540,52 @@ class ConstructionTest {
 		headless.runDays(6);
 		assertEquals(Building.Stage.COMPLETE, store.stage());
 		assertEquals(Blueprint.MAIN_STORE + 0, store.blueprint(), "it has no lot to grow on, so it is never enlarged");
+	}
+
+	@Test
+	void anEnlargedTownBuildsOutThroughItsGatesInsideASecondWallOfStone() {
+		Settlement settlement = settle(8);
+		headless.simulation().adoptPlan(settlement, Policy.MILITARY);
+		headless.simulation().adoptPlan(settlement, Policy.AGRARIAN);
+		settlement.ledger().add(Commodity.FOOD, 500_000);
+		settlement.ledger().add(Commodity.WOOD, 500_000);
+		settlement.ledger().add(Commodity.STONE, 500_000);
+		settlement.ledger().add(Commodity.ORE, 20_000);
+		// It grows until it is a town, or until the land inside its first wall is full.
+		for (int day = 0; day < 80 && (!settlement.mayExpand() || !settlement.wallPlan().isEmpty()); day++) {
+			headless.runDays(1);
+		}
+		assertTrue(settlement.mayExpand(), settlement.stage() + ", size " + settlement.size());
+		int firstWall = settlement.wallPieces();
+		int housesBefore = settlement.buildings().size();
+		int sizeBefore = settlement.size();
+
+		// The wider land: level ground out to the new bounds.
+		TerrainSnapshot wide = new TerrainSnapshot(settlement.anchorX(), settlement.anchorZ(), Founding.EXPANDED_RADIUS);
+		for (int i = 0; i < wide.columnCount(); i++) {
+			wide.set(i, 64, Surface.SOIL);
+		}
+		assertTrue(headless.simulation().expand(settlement, SiteSurvey.analyse(wide).plots()));
+		assertFalse(headless.simulation().expand(settlement, SiteSurvey.analyse(wide).plots()), "a charter is taken once");
+		assertTrue(settlement.wallPieces() > firstWall, "a second ring is planned");
+		assertTrue(settlement.wallPlan().stream().anyMatch(p -> p.blueprint().equals(Fortification.STONE_GATE)), "with gates of stone");
+		assertTrue(settlement.wallPlan().stream().allMatch(p -> library.get(p.blueprint()).isPresent()), "every piece has a design");
+
+		headless.runDays(40);
+		long beyond = settlement.buildings().stream().filter(b -> b.category() != Blueprint.Category.DEFENSE
+				&& Math.max(Math.abs(b.x() - settlement.anchorX()), Math.abs(b.z() - settlement.anchorZ())) > 50).count();
+		assertTrue(beyond >= 5, "it builds beyond the first wall: " + beyond + " buildings, " + settlement.streets().size() + " streets");
+		assertTrue(settlement.size() > sizeBefore, "and grows again: " + sizeBefore + " then " + settlement.size());
+		assertTrue(settlement.buildings().size() > housesBefore);
+		assertTrue(settlement.publicBuildings() >= 2, "with public buildings: " + settlement.publicBuildings());
+		long stone = settlement.buildings().stream().filter(b -> b.blueprint().startsWith(WallDesigns.RAMPART_PREFIX)
+				&& b.stage() == Building.Stage.COMPLETE).count();
+		assertTrue(stone > 0, "and the stone wall is going up");
+		for (Building building : settlement.buildings()) {
+			assertTrue(settlement.withinWalls(building.x(), building.z()) || building.category() == Blueprint.Category.DEFENSE,
+					"nothing outside the second wall: " + building.blueprint());
+		}
+		assertTrue(settlement.buildings().stream().anyMatch(b -> library.get(b.blueprint()).map(d -> d.minStage() >= 2).orElse(false)),
+				"and some of the fine houses among them");
 	}
 }

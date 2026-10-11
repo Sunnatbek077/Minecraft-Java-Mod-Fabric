@@ -84,7 +84,7 @@ public final class Lamplighter {
 
 	/** Removes a lamp standing in this column, if there is one and the column is open ground of the settlement's. */
 	private static void takeDown(ServerLevel level, Settlement settlement, int x, int z) {
-		if (!level.hasChunk(x >> 4, z >> 4) || !settlement.withinWalls(x, z) || Landscaper.keptOpen(settlement, x, z)) {
+		if (!level.hasChunk(x >> 4, z >> 4) || !settlement.withinWalls(x, z) || Landscaper.keptOpen(settlement, x, z) || Landscaper.keptClear(settlement, x, z)) {
 			return; // posts and lanterns in front of houses, on gates and in yards are part of those
 		}
 		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
@@ -184,7 +184,7 @@ public final class Lamplighter {
 
 	/** The ground block a lamp could stand on in this column, if the column is dim and free; else null. */
 	private static BlockPos spotAt(ServerLevel level, Settlement settlement, int x, int z) {
-		if (!level.hasChunk(x >> 4, z >> 4) || !settlement.withinWalls(x, z) || Landscaper.keptOpen(settlement, x, z)) {
+		if (!level.hasChunk(x >> 4, z >> 4) || !settlement.withinWalls(x, z) || Landscaper.keptOpen(settlement, x, z) || Landscaper.keptClear(settlement, x, z)) {
 			return null;
 		}
 		int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;

@@ -245,7 +245,8 @@ class ResourceManagerTest {
 		world.simulation.adoptPlan(world.settlement, Policy.AGRARIAN);
 		world.headless.runDays(25);
 		Settlement settlement = world.settlement;
-		assertTrue(settlement.size() >= 14, "size " + settlement.size());
+		// Grown enough to need more than its first three sites; how fast it gets there depends on which houses it could afford.
+		assertTrue(settlement.size() >= 12, "size " + settlement.size());
 		assertTrue(settlement.sites().size() > 3, "sites " + settlement.sites().size());
 		long idle = settlement.members().stream()
 				.filter(c -> !c.isChild() && c.role() != Role.LEADER && c.role() != Role.GENERAL && c.job() == null).count();

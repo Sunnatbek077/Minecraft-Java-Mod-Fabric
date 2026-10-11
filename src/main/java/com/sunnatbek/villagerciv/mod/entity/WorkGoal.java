@@ -32,11 +32,14 @@ final class WorkGoal extends Goal {
 	}
 
 	private static final double REACH_SQR = 2.5 * 2.5;
+	private static final double CLEAR_REACH_SQR = 3.5 * 3.5;
 	private static final double STOCKPILE_REACH_SQR = 4.0 * 4.0;
 	private static final int REPATH_INTERVAL_TICKS = 20;
 	/** How many steps of a mine stair a miner makes for at a time, and how far from its mouth a mine reaches. */
 	private static final int STAIR_LEG = 8;
 	private static final int MINE_SPAN = 40;
+	private static final int HOIST_FROM = 24;
+	private static final int HOIST_RIDE = 16;
 	/**
 	 * Give up on a spot that cannot be reached within this long. A minute: the walk down a deep
 	 * mine and back up with a load is a long one, and must not be mistaken for being stuck.
@@ -53,6 +56,8 @@ final class WorkGoal extends Goal {
 	private int repathIn;
 	private int waitUntilTick;
 	private boolean finished;
+	/** Whether this trip has already been restarted from the Town Center once. */
+	private boolean unstuck;
 
 	WorkGoal(CitizenEntity entity) {
 		this.entity = entity;
@@ -89,6 +94,14 @@ final class WorkGoal extends Goal {
 
 	@Override
 	public void stop() {
+		// The end of a shift finds a miner far underground. The long climb is not acted out: it
+		// comes up at the pit head, and walks home (or to the storehouse) from there.
+		WorkSite mine = ownMine();
+		if (mine != null && !WorkDay.isDay(entity.level()) && stepOf(mine, entity.getY()) > STAIR_LEG
+				&& Math.abs(entity.getX() - mine.x()) <= MINE_SPAN && Math.abs(entity.getZ() - mine.z()) <= MINE_SPAN) {
+			BlockPos top = WorkSites.stairStand(mine, 0);
+			entity.teleportTo(top.getX() + 0.5, top.getY(), top.getZ() + 0.5);
+		}
 		release();
 		entity.getNavigation().stop();
 		// "Waiting" outlives the goal: it is why the citizen stands about until it looks again.
@@ -111,6 +124,11 @@ final class WorkGoal extends Goal {
 		}
 		Settlement settlement = entity.settlement();
 		Citizen citizen = entity.citizen();
+		// The job board can take the job away between one tick and the next.
+		if (settlement == null || citizen.job() == null || !citizen.job().hasWorkSite() || settlement.site(citizen.jobSite()) == null) {
+			finished = true;
+			return;
+		}
 		WorkSite site = settlement.site(citizen.jobSite());
 
 		citizen.setActivity(switch (phase) {
@@ -137,7 +155,11 @@ final class WorkGoal extends Goal {
 					repathIn = 0;
 				}
 				BlockPos stand = action.stand();
-				if (entity.distanceToSqr(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5) <= REACH_SQR) {
+				// A blocked stair is cleared from whichever side the miner is on: one caught below
+				// it cannot get to the step above, but is within arm's reach of the blockage.
+				boolean atBlockage = action.kind() == WorkSites.Kind.CLEAR_STEP
+						&& entity.distanceToSqr(action.pos().getX() + 0.5, action.pos().getY() + 1, action.pos().getZ() + 0.5) <= CLEAR_REACH_SQR;
+				if (atBlockage || entity.distanceToSqr(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5) <= REACH_SQR) {
 					entity.getNavigation().stop();
 					timer = action.kind().ticks() * 100 / Labor.efficiencyPercent(settlement, citizen, citizen.job());
 					// Moving earth is shovel work, whatever the job.
@@ -164,7 +186,9 @@ final class WorkGoal extends Goal {
 					entity.pack().addAll(yield.items());
 				}
 				Labor.reportProgress(citizen, embodiment.gameTick());
-				phase = citizen.carryingAmount() >= Labor.CARRY_CAPACITY ? Phase.TO_STOCKPILE : Phase.TO_WORK;
+				// A miner's way up is a longer one, even with the hoist: it takes half as much again.
+				int load = citizen.job() == JobType.MINE ? Labor.CARRY_CAPACITY * 3 / 2 : Labor.CARRY_CAPACITY;
+				phase = citizen.carryingAmount() >= load ? Phase.TO_STOCKPILE : Phase.TO_WORK;
 				travelled = 0;
 				repathIn = 0;
 			}
@@ -179,8 +203,17 @@ final class WorkGoal extends Goal {
 						// when it reaches the storehouse. Only what the chest has no room for is
 						// counted here and now.
 						// A miner's finds go in as what they are; anything else as the plain goods it is.
-						int left = !entity.pack().isEmpty() && PersonalChests.put(level, chest, entity.pack()) ? 0
-								: PersonalChests.stock(level, chest, citizen.carrying(), citizen.carryingAmount());
+						int left;
+						if (entity.pack().isEmpty()) {
+							left = PersonalChests.stock(level, chest, citizen.carrying(), citizen.carryingAmount());
+						} else {
+							// What the chest has no room for is not left standing in the doorway, nor
+							// thrown away: it is taken as carried straight on to the storehouse.
+							if (!PersonalChests.put(level, chest, entity.pack())) {
+								embodiment.deposit(level, settlement, entity.pack());
+							}
+							left = 0;
+						}
 						citizen.carry(citizen.carrying(), left - citizen.carryingAmount());
 					}
 					if (chest == null && !entity.pack().isEmpty()) {
@@ -215,6 +248,18 @@ final class WorkGoal extends Goal {
 				repathIn = 0;
 				return true;
 			}
+			// Anyone else who cannot get where it is going in a minute is stuck somewhere: in a
+			// pit, behind a fence, at a door that will not open. It is set down by the Town
+			// Center, from where every street leads on, and tries again.
+			Settlement settlement = entity.settlement();
+			if (settlement != null && !unstuck) {
+				unstuck = true;
+				entity.teleportTo(settlement.anchorX() + 2.5, settlement.anchorY() + 1, settlement.anchorZ() + 0.5);
+				travelled = 0;
+				repathIn = 0;
+				return true;
+			}
+			unstuck = false;
 			return false;
 		}
 		// Path searches are the costly part of walking: they are rationed across all citizens.
@@ -257,6 +302,13 @@ final class WorkGoal extends Goal {
 		int there = targetInMine ? Math.max(0, stepOf(mine, target.getY())) : 0;
 		if (Math.abs(there - here) <= STAIR_LEG) {
 			return target;
+		}
+		// Most of a long way up or down is ridden, not walked: the mine has a hoist. A hundred
+		// steps on foot each way would leave no time in the day for mining.
+		if (Math.abs(there - here) > HOIST_FROM) {
+			BlockPos stop = WorkSites.stairStand(mine, here + (there > here ? HOIST_RIDE : -HOIST_RIDE));
+			entity.teleportTo(stop.getX() + 0.5, stop.getY(), stop.getZ() + 0.5);
+			return stop;
 		}
 		return WorkSites.stairStand(mine, here + (there > here ? STAIR_LEG : -STAIR_LEG));
 	}

@@ -1,0 +1,11 @@
+{
+	"required": true,
+	"package": "com.sunnatbek.villagerciv.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"mixins": [
+		"NormalCraftingRecipeMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

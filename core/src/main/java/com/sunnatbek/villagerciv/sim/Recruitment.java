@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/** Rules for asking a villager to join: the villager may say no. */
+/** Rules for asking a villager to join. */
 public final class Recruitment {
 	/** Largest group that can travel with one player. */
 	public static final int MAX_EXPEDITION_SIZE = 8;
@@ -45,20 +45,15 @@ public final class Recruitment {
 	private final Map<UUID, Long> cooldownUntil = new HashMap<>();
 
 	/**
-	 * Chance that a villager accepts.
+	 * Chance that a villager accepts. The scroll is a binding offer: a villager shown one comes,
+	 * whatever its trade and whatever the hour. (It used to be a matter of chance, and a patron
+	 * who had paid for the scroll was turned away more often than not.)
 	 *
-	 * @param unemployed no profession, or a nitwit: little to leave behind
-	 * @param night      villagers are anxious at night
+	 * @param unemployed no profession, or a nitwit; told to the player, but no longer weighed
+	 * @param night      likewise
 	 */
 	public static double acceptChance(boolean unemployed, boolean night) {
-		double chance = 0.6;
-		if (unemployed) {
-			chance += 0.25;
-		}
-		if (night) {
-			chance -= 0.2;
-		}
-		return Math.clamp(chance, 0.05, 0.95);
+		return 1.0;
 	}
 
 	long cooldownRemaining(UUID villager, long gameTick) {

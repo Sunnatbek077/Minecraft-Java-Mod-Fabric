@@ -27,6 +27,7 @@ import com.sunnatbek.villagerciv.sim.SiteScore;
 import com.sunnatbek.villagerciv.sim.Role;
 import com.sunnatbek.villagerciv.sim.Simulation;
 import com.sunnatbek.villagerciv.sim.ToolKind;
+import com.sunnatbek.villagerciv.sim.WorkSite;
 import com.sunnatbek.villagerciv.sim.Tools;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.BlockPos;
@@ -61,6 +62,8 @@ import java.util.Map;
 public final class EmbodimentController {
 	/** A camped expedition resumes travelling when its player comes back within this range. */
 	private static final double REJOIN_DISTANCE_SQR = 64.0 * 64.0;
+	/** A player this near a settlement's Town Center is in the settlement, wherever in it they stand. */
+	private static final double SETTLEMENT_DISTANCE_SQR = 110.0 * 110.0;
 	/** A member left further behind than this rejoins next to the player instead of where it stood. */
 	private static final double LEFT_BEHIND_DISTANCE_SQR = 48.0 * 48.0;
 
@@ -77,7 +80,10 @@ public final class EmbodimentController {
 	private final BuildSites buildSites;
 	private final Warehouse warehouse = new Warehouse(this);
 	private final Landscaper landscaper = new Landscaper();
+	private static final long RESURVEY_TICKS = 6_000;
+	private final Map<com.sunnatbek.villagerciv.api.SettlementId, Long> resurveyedAt = new HashMap<>();
 	private final Lamplighter lamplighter = new Lamplighter();
+	private final Set<Long> minesLookedAt = new java.util.HashSet<>();
 	private int spawnsLeft;
 	// Blocks a worker is on its way to or busy with, so two do not go for the same one.
 	private final Set<Long> claimedBlocks = new HashSet<>();
@@ -110,7 +116,7 @@ public final class EmbodimentController {
 		for (Settlement settlement : simulation.state().settlements().all()) {
 			for (Building building : settlement.buildings()) {
 				buildSites.checkDesign(settlement, building);
-				buildSites.raiseSunkenWall(level, settlement, building);
+				buildSites.bringToGrade(level, settlement, building, goods -> warehouse.deposit(level, settlement, goods));
 				while (building.applied() < building.progress() && applied < MAX_DEFERRED_EDITS_PER_RUN) {
 					if (buildSites.applyNext(level, settlement, building) == BuildSites.Outcome.NOT_NOW) {
 						break;
@@ -139,8 +145,21 @@ public final class EmbodimentController {
 			return;
 		}
 		for (Settlement settlement : simulation.state().settlements().all()) {
+			// A settlement with no room left has its land looked over again now and then: what
+			// the levellers have made of it since may be ground to build on.
+			if (settlement.isOutOfRoom() && VillagerCivMod.founding() != null
+					&& gameTick() - resurveyedAt.getOrDefault(settlement.id(), -RESURVEY_TICKS) >= RESURVEY_TICKS) {
+				resurveyedAt.put(settlement.id(), gameTick());
+				VillagerCivMod.founding().resurvey(settlement);
+			}
 			landscaper.scan(level, settlement);
 			lamplighter.scan(level, settlement);
+			for (WorkSite site : settlement.sites()) {
+				long key = site.id() * 31L + settlement.anchorX();
+				if (site.isExhausted() && !minesLookedAt.contains(key) && WorkSites.reopenIfWorkable(level, site)) {
+					minesLookedAt.add(key);
+				}
+			}
 		}
 	}
 
@@ -242,6 +261,17 @@ public final class EmbodimentController {
 		if (players.isEmpty()) {
 			return;
 		}
+		// A settlement is one place. With a player anywhere in or beside it, all of its people
+		// are there to be seen and at their work, not only those within a stone's throw of where
+		// the player happens to stand: the far side of the village would otherwise stand idle.
+		boolean wholePlace = false;
+		if (group instanceof Settlement settlement) {
+			for (int i = 0; i < players.size() && !wholePlace; i++) {
+				double dx = players.get(i).getX() - settlement.anchorX();
+				double dz = players.get(i).getZ() - settlement.anchorZ();
+				wholePlace = dx * dx + dz * dz <= SETTLEMENT_DISTANCE_SQR;
+			}
+		}
 		for (Citizen citizen : group.members()) {
 			if (spawnsLeft <= 0) {
 				return;
@@ -249,8 +279,17 @@ public final class EmbodimentController {
 			if (citizen.isEmbodied() || !level.isLoaded(BlockPos.containing(citizen.x(), citizen.y(), citizen.z()))) {
 				continue;
 			}
+			if (wholePlace) {
+				materialize(level, group, citizen, citizen.x(), citizen.y(), citizen.z(), 0f);
+				continue;
+			}
 			for (int i = 0; i < players.size(); i++) {
-				if (players.get(i).distanceToSqr(citizen.x(), citizen.y(), citizen.z()) <= REJOIN_DISTANCE_SQR) {
+				// Measured along the ground only. A miner at the bottom of a deep mine is right
+				// under the village, not far from it: counted by height as well, it would be
+				// left without a body every time the world is opened, load in hand, for good.
+				double dx = players.get(i).getX() - citizen.x();
+				double dz = players.get(i).getZ() - citizen.z();
+				if (dx * dx + dz * dz <= REJOIN_DISTANCE_SQR) {
 					materialize(level, group, citizen, citizen.x(), citizen.y(), citizen.z(), 0f);
 					break;
 				}

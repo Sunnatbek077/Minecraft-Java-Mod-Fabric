@@ -100,11 +100,20 @@ public final class Construction {
 			}
 			return;
 		}
-		Blueprint next = choice.design() != null ? choice.design() : pick(ordinary(library, choice.category()), random);
+		Blueprint next = choice.design();
+		List<Blueprint> others = List.of();
+		if (next == null) {
+			// Any design of the kind that can be paid for today: a young settlement builds
+			// plain houses, and the fine ones come when there is the wood and stone for them.
+			List<Blueprint> affordable = new java.util.ArrayList<>(ordinary(library, choice.category()));
+			affordable.removeIf(option -> !canAfford(settlement, option) || option.minStage() > settlement.stage().ordinal());
+			next = pickByBeds(leastBuilt(settlement, affordable), random);
+			others = affordable;
+		}
 		if (next == null || !canAfford(settlement, next)) {
 			return; // wait for the lumberjacks and miners (or a generous player)
 		}
-		if (choice.category() == Blueprint.Category.WORKSHOP) {
+		if (choice.category() == Blueprint.Category.WORKSHOP || choice.category() == Blueprint.Category.PUBLIC) {
 			// A workshop goes on a street lot like a house, or failing that wherever there is room.
 			if (TownPlan.site(settlement, next, random) == null && TownPlan.freeSite(settlement, next, STORE_SEARCH_REACH) == null) {
 				settlement.setWorkshopSoughtAtStreets(java.util.Arrays.asList(WORKSHOPS).indexOf(next.id()), settlement.streets().size());
@@ -127,11 +136,18 @@ public final class Construction {
 				}
 				next = hallOnly;
 			}
+		} else if (settlement.foundNoRoomLately()) {
+			return; // looked a moment ago, and nothing has changed since
 		} else if (TownPlan.site(settlement, next, random) == null) {
-			// No room. The settlement lives on as it is: people keep to their work, and with
-			// no new beds there are no more of them.
-			settlement.setOutOfRoom(true);
-			return;
+			// No lot for that one. Before giving up, the smaller designs are tried, the smallest
+			// first: the last corners of a full settlement still take a narrow house.
+			next = smallerThatFits(settlement, others, next, random);
+			if (next == null) {
+				// No room. The settlement lives on as it is: people keep to their work, and with
+				// no new beds there are no more of them.
+				settlement.noteNoRoom();
+				return;
+			}
 		}
 		settlement.setOutOfRoom(false);
 		reserve(settlement, next);
@@ -285,7 +301,7 @@ public final class Construction {
 		// It is built as soon as it can be paid for, and until then does not hold up the houses.
 		Blueprint workshop = wantedWorkshop(settlement, library);
 		if (workshop != null && canAfford(settlement, workshop)) {
-			return new Choice(Blueprint.Category.WORKSHOP, workshop, null);
+			return new Choice(workshop.category(), workshop, null);
 		}
 		// Beds beyond one each are room to grow, and are only built by a settlement that is
 		// well fed and has not outgrown its stage. Full stores are for building with: a rich
@@ -293,21 +309,34 @@ public final class Construction {
 		boolean thriving = !settlement.isStarving() && settlement.foodDays() >= Population.COMFORTABLE_FOOD_DAYS;
 		Ledger ledger = settlement.ledger();
 		boolean rich = ledger.available(Commodity.WOOD) >= RICH_WOOD && ledger.available(Commodity.STONE) >= RICH_STONE;
-		int room = settlement.growthRoom() * (rich ? 2 : 1);
+		// And a big one further still: a town that built four beds ahead would have its builders
+		// standing about most of the day. With stores piled high it builds for half as many
+		// people again as it has: wood and stone lying in a storehouse house nobody.
+		boolean overflowing = ledger.available(Commodity.WOOD) >= 10 * RICH_WOOD && ledger.available(Commodity.STONE) >= 10 * RICH_STONE;
+		int room = Math.max(settlement.growthRoom() * (rich ? 2 : 1), overflowing ? settlement.size() / 2 : rich ? settlement.size() / 4 : 0);
 		if (thriving && settlement.plannedBeds() < Math.min(settlement.size() + room, Population.softCap(settlement.stage()))) {
 			return new Choice(Blueprint.Category.HOUSING);
 		}
 		return null;
 	}
 
-	/** The workshops, in the order they are built, and the stage a settlement has to have reached for each. */
-	private static final String[] WORKSHOPS = {Blueprint.SMITHY, Blueprint.MASONS_YARD, Blueprint.MARKET};
-	private static final SettlementStage[] WORKSHOP_STAGES = {SettlementStage.SETTLEMENT, SettlementStage.VILLAGE, SettlementStage.VILLAGE};
+	/**
+	 * The buildings a settlement puts up once each, in the order it does so: its workshops, and
+	 * after its patron has let it grow beyond its first wall, its public buildings. With each,
+	 * the stage a settlement has to have reached, and whether it takes that leave to grow.
+	 */
+	private static final String[] WORKSHOPS = {Blueprint.SMITHY, Blueprint.MASONS_YARD, Blueprint.MARKET,
+			"well", "tavern", "chapel", "fountain", "cattle_pen", "sheep_pen", "chicken_coop", "pig_sty"};
+	private static final SettlementStage[] WORKSHOP_STAGES = {SettlementStage.SETTLEMENT, SettlementStage.VILLAGE, SettlementStage.VILLAGE,
+			SettlementStage.TOWN, SettlementStage.TOWN, SettlementStage.TOWN, SettlementStage.TOWN,
+			// The pens come with the land beyond the first wall, whatever the settlement is called by then.
+			SettlementStage.VILLAGE, SettlementStage.VILLAGE, SettlementStage.VILLAGE, SettlementStage.VILLAGE};
+	private static final int FIRST_PUBLIC = 3;
 
 	/** The next workshop the settlement is big enough for and does not have yet (standing, planned or being built). */
 	private static Blueprint wantedWorkshop(Settlement settlement, BlueprintLibrary library) {
 		for (int i = 0; i < WORKSHOPS.length; i++) {
-			if (settlement.stage().ordinal() < WORKSHOP_STAGES[i].ordinal()) {
+			if (settlement.stage().ordinal() < WORKSHOP_STAGES[i].ordinal() || (i >= FIRST_PUBLIC && settlement.expansion() == 0)) {
 				continue;
 			}
 			String design = WORKSHOPS[i];
@@ -350,6 +379,74 @@ public final class Construction {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Another design to build where the chosen one found no lot. The ones built least often are
+	 * tried first, so a tight corner is filled with something the settlement does not have yet
+	 * rather than with one more of its smallest house; among those, the smaller first.
+	 */
+	private static Blueprint smallerThatFits(Settlement settlement, List<Blueprint> options, Blueprint tooBig, IdGenerator random) {
+		java.util.Map<String, Integer> built = new java.util.HashMap<>();
+		for (Building building : settlement.buildings()) {
+			built.merge(building.blueprint(), 1, Integer::sum);
+		}
+		List<Blueprint> others = new java.util.ArrayList<>(options);
+		others.removeIf(option -> option.width() >= tooBig.width() && option.depth() >= tooBig.depth());
+		others.sort(java.util.Comparator.comparingInt((Blueprint option) -> built.getOrDefault(option.id(), 0))
+				.thenComparingInt(option -> option.width() * option.depth()).thenComparing(Blueprint::id));
+		for (Blueprint option : others) {
+			if (TownPlan.site(settlement, option, random) != null) {
+				return option;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Of these designs, the ones the settlement has built least often: none at all, while there
+	 * is such a one. So no house is built a second time until every design that can be afforded
+	 * has been built once, and which of them comes next is left to chance.
+	 */
+	private static List<Blueprint> leastBuilt(Settlement settlement, List<Blueprint> options) {
+		java.util.Map<String, Integer> built = new java.util.HashMap<>();
+		for (Building building : settlement.buildings()) {
+			built.merge(building.blueprint(), 1, Integer::sum);
+		}
+		int fewest = Integer.MAX_VALUE;
+		for (Blueprint option : options) {
+			fewest = Math.min(fewest, built.getOrDefault(option.id(), 0));
+		}
+		List<Blueprint> rarest = new java.util.ArrayList<>();
+		for (Blueprint option : options) {
+			if (built.getOrDefault(option.id(), 0) == fewest) {
+				rarest.add(option);
+			}
+		}
+		return rarest;
+	}
+
+	/**
+	 * Any of these designs, by chance, but a house for six comes up three times as often as a
+	 * house for two: land is what a settlement runs out of, and it should not spend its few
+	 * lots mostly on the smallest houses.
+	 */
+	private static Blueprint pickByBeds(List<Blueprint> options, IdGenerator random) {
+		int total = 0;
+		for (Blueprint option : options) {
+			total += Math.max(1, option.beds());
+		}
+		if (total == 0) {
+			return null;
+		}
+		int drawn = random.nextInt(total);
+		for (Blueprint option : options) {
+			drawn -= Math.max(1, option.beds());
+			if (drawn < 0) {
+				return option;
+			}
+		}
+		return options.getLast();
 	}
 
 	/** Any design of the kind that is wanted: variety is the point of having several. */

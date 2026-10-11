@@ -1,0 +1,68 @@
+{
+	"id": "cattle_pen",
+	"name": "Cattle Pen",
+	"category": "workshop",
+	"beds": 0,
+	"min_stage": 2,
+	"cost": {"wood": 90, "stone": 10},
+	"late": "C",
+	"palette": {
+		"A": "minecraft:grass_block",
+		"B": "minecraft:oak_log[axis=y]",
+		"C": "minecraft:lantern[hanging=false]",
+		"D": "minecraft:oak_fence",
+		"E": "minecraft:stripped_oak_log[axis=y]",
+		"F": "minecraft:spruce_slab[type=bottom]",
+		"G": "minecraft:hay_block",
+		"H": "minecraft:coarse_dirt",
+		"I": "minecraft:oak_fence_gate[facing=south]",
+		"J": "minecraft:water_cauldron[level=3]",
+		"K": "minecraft:composter"
+	},
+	"layers": [
+		[
+			"AAAAAAAAAAA",
+			"AAAAAAAAAAA",
+			"AAHHAAAAAAA",
+			"AAHHAAAAAAA",
+			"AAAAAAAAAAA",
+			"AAAAAAAAAAA",
+			"AAAAAAAAAAA",
+			"AAAAAAAAAAA",
+			"AAAAAAAAAAA"
+		],
+		[
+			"BDDDDDDDDDB",
+			"DEGGE...JJD",
+			"D.........D",
+			"DE..E.....D",
+			"D.........D",
+			"D.........D",
+			"D.........D",
+			"D........KD",
+			"BDDDDIDDDDB"
+		],
+		[
+			"B.........B",
+			".EG.E......",
+			"...........",
+			".E..E......",
+			"...........",
+			"...........",
+			"...........",
+			"...........",
+			"B.........B"
+		],
+		[
+			"C         C",
+			" FFFF..... ",
+			" FFFF..... ",
+			" FFFF..... ",
+			" ......... ",
+			" ......... ",
+			" ......... ",
+			" ......... ",
+			"C         C"
+		]
+	]
+}

@@ -211,6 +211,32 @@ public final class Settlement implements SimRecord<SettlementId>, CitizenGroup {
 		return active;
 	}
 
+	/**
+	 * How far the settlement has been allowed to grow beyond its first bounds: 0 until its
+	 * patron grants an Expansion Charter, 1 after. Saved.
+	 */
+	public int expansion() {
+		return expansion;
+	}
+
+	public void setExpansion(int expansion) {
+		if (this.expansion != expansion) {
+			this.expansion = expansion;
+			dirty = true;
+		}
+	}
+
+	/** How many finished public buildings (well, tavern, chapel and the like) the settlement has. */
+	public int publicBuildings() {
+		int count = 0;
+		for (int i = 0; i < buildings.size(); i++) {
+			if (buildings.get(i).category() == Blueprint.Category.PUBLIC && buildings.get(i).stage() == Building.Stage.COMPLETE) {
+				count++;
+			}
+		}
+		return count;
+	}
+
 	/** The finished workshop of a design, or null if the settlement has none standing. */
 	public Building workshop(String design) {
 		for (int i = 0; i < buildings.size(); i++) {
@@ -220,6 +246,17 @@ public final class Settlement implements SimRecord<SettlementId>, CitizenGroup {
 			}
 		}
 		return null;
+	}
+
+	/** The pens that stand finished, in the order they were built. */
+	public List<Building> pens() {
+		List<Building> pens = new ArrayList<>();
+		for (Building building : buildings) {
+			if (Blueprint.isPen(building.blueprint()) && building.stage() == Building.Stage.COMPLETE) {
+				pens.add(building);
+			}
+		}
+		return pens;
 	}
 
 	/** How many streets there were when room for a workshop was last looked for in vain; -1 if never. Not saved. */
@@ -240,6 +277,18 @@ public final class Settlement implements SimRecord<SettlementId>, CitizenGroup {
 		declineSinceTick = tick;
 	}
 
+	/**
+	 * Whether the job board would put more hands to this job than its sites have places for. Told
+	 * by the job board, read by whoever lays out new sites; not saved.
+	 */
+	public boolean wishesSite(JobType job) {
+		return siteWish[job.ordinal()];
+	}
+
+	public void setSiteWish(JobType job, boolean wish) {
+		siteWish[job.ordinal()] = wish;
+	}
+
 	/** Whether anyone holds this job right now. */
 	public boolean hasWorker(JobType job) {
 		for (Citizen citizen : members.values()) {
@@ -252,9 +301,11 @@ public final class Settlement implements SimRecord<SettlementId>, CitizenGroup {
 
 	/** The main storehouse, or null while the settlement has none. */
 	private int storeSoughtAtStreets = -1;
+	private int expansion;
+	private final boolean[] siteWish = new boolean[JobType.values().length];
 	private boolean groundWork;
 	private boolean lampWork;
-	private final int[] workshopSoughtAtStreets = {-1, -1, -1};
+	private final int[] workshopSoughtAtStreets = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
 	private long declineSinceTick = NOT_ELIGIBLE;
 	private boolean outOfRoom;
 	private static final int WALL_INSET = 5;
@@ -429,6 +480,39 @@ public final class Settlement implements SimRecord<SettlementId>, CitizenGroup {
 		return bounds == null || (x >= bounds[0] && x <= bounds[2] && z >= bounds[1] && z <= bounds[3]);
 	}
 
+	/** How far from its Town Center a settlement without a wall looks after its ground. */
+	public static final int OPEN_GROUND_REACH = 36;
+	private static final int GRADE_SAMPLE = 9;
+
+	/**
+	 * The level the settlement keeps its ground at: the height of the ground block everything
+	 * stands on. A settlement is built on the flat. Its first houses settle where that is (the
+	 * middle one of them, so one house on a bank does not lift the whole town), and from then on
+	 * every lot and every stretch of wall is brought to it, and the ground between them too.
+	 */
+	public int grade() {
+		int[] levels = new int[GRADE_SAMPLE];
+		int known = 0;
+		for (int i = 0; i < buildings.size() && known < GRADE_SAMPLE; i++) {
+			Building building = buildings.get(i);
+			if (building.category() != Blueprint.Category.DEFENSE && building.y() != Building.Y_UNKNOWN) {
+				levels[known++] = building.y();
+			}
+		}
+		if (known < 3) {
+			return anchorY - 1;
+		}
+		java.util.Arrays.sort(levels, 0, known);
+		return levels[known / 2];
+	}
+
+	/** {west, north, east, south} of the ground the settlement keeps level: what its wall encloses, or the land round its Town Center. */
+	public int[] groundBounds() {
+		int[] walled = wallBounds();
+		return walled != null ? walled : new int[] {anchorX - OPEN_GROUND_REACH, anchorZ - OPEN_GROUND_REACH,
+				anchorX + OPEN_GROUND_REACH, anchorZ + OPEN_GROUND_REACH};
+	}
+
 	/** {west, north, east, south} of the ground inside the wall, or null if there is no wall. */
 	private int[] wallBounds() {
 		int key = buildings.size() * 1_000 + wallPlan.size();
@@ -460,6 +544,44 @@ public final class Settlement implements SimRecord<SettlementId>, CitizenGroup {
 	}
 
 	/** Not saved: whether the last search for a building lot found none. */
+	/**
+	 * Whether a charter to grow would be taken: by a town, and by a village whose land is full. The
+	 * ground inside a first wall does not always hold the forty a town needs, and a village that
+	 * could neither grow nor be enlarged would be stuck for good.
+	 */
+	public boolean mayExpand() {
+		return expansion == 0 && (stage.ordinal() >= SettlementStage.TOWN.ordinal()
+				|| (stage == SettlementStage.VILLAGE && outOfRoom));
+	}
+
+	private int noRoomAt = -1;
+	private int lookForRoomIn;
+	/** After a search for a house lot that found none, this many reviews pass before the next. */
+	private static final int REVIEWS_BETWEEN_SEARCHES = 12;
+
+	private int layoutMark() {
+		return buildings.size() * 10_007 + streets.size() * 101 + wallPlan.size() * 7 + expansion + stage.ordinal() * 1_000_003;
+	}
+
+	/**
+	 * Whether the search for a house lot can be skipped this time: the last one found none,
+	 * nothing has been built or laid out since, and it was not long ago. A search is a long look
+	 * over the whole plan, and where streets may go is partly chance, so it is tried again now
+	 * and then rather than at every review or never. Not saved.
+	 */
+	public boolean foundNoRoomLately() {
+		if (!outOfRoom || noRoomAt != layoutMark()) {
+			return false;
+		}
+		return --lookForRoomIn > 0;
+	}
+
+	public void noteNoRoom() {
+		outOfRoom = true;
+		noRoomAt = layoutMark();
+		lookForRoomIn = REVIEWS_BETWEEN_SEARCHES;
+	}
+
 	public boolean isOutOfRoom() {
 		return outOfRoom;
 	}

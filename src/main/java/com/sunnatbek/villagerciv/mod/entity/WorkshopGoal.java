@@ -113,6 +113,11 @@ final class WorkshopGoal extends Goal {
 		}
 		BlockPos stand = bench[1];
 		Citizen citizen = entity.citizen();
+		// The job board can take the job away between one tick and the next.
+		if (citizen.job() == null || citizen.job().workshop() == null) {
+			finished = true;
+			return;
+		}
 		double distance = entity.distanceToSqr(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5);
 		// At the bench, or as near as the walk got it: a tradesman who stops a step short in its
 		// own doorway is put in its place rather than left to look idle there.

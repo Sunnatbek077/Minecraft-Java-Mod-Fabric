@@ -1,0 +1,92 @@
+{
+	"id": "chicken_coop",
+	"name": "Chicken Coop",
+	"category": "workshop",
+	"beds": 0,
+	"min_stage": 2,
+	"cost": {"wood": 60, "stone": 10},
+	"late": "C",
+	"palette": {
+		"A": "minecraft:grass_block",
+		"B": "minecraft:spruce_log[axis=y]",
+		"C": "minecraft:lantern[hanging=false]",
+		"D": "minecraft:oak_fence",
+		"E": "minecraft:spruce_planks",
+		"F": "minecraft:birch_planks",
+		"G": "minecraft:hay_block",
+		"H": "minecraft:spruce_stairs[facing=north,half=bottom]",
+		"I": "minecraft:oak_fence_gate[facing=south]",
+		"J": "minecraft:water_cauldron[level=3]",
+		"K": "minecraft:composter",
+		"L": "minecraft:dark_oak_slab[type=bottom]",
+		"M": "minecraft:dark_oak_slab[type=top]"
+	},
+	"layers": [
+		[
+			"AAAAAAA",
+			"AAAAAAA",
+			"AAAAAAA",
+			"AAAAAAA",
+			"AAAAAAA",
+			"AAAAAAA",
+			"AAAAAAA",
+			"AAAAAAA",
+			"AAAAAAA"
+		],
+		[
+			"BDDDDDB",
+			"DD...DD",
+			"D.....D",
+			"DD...DD",
+			"D.....D",
+			"D..H.JD",
+			"D.....D",
+			"DG...KD",
+			"BDDIDDB"
+		],
+		[
+			"B.....B",
+			".EEEEE.",
+			".EEEEE.",
+			".EEEEE.",
+			"...H...",
+			".......",
+			".......",
+			".......",
+			"B.....B"
+		],
+		[
+			"C     C",
+			" FFFFF ",
+			" FGGGF ",
+			" FF.FF ",
+			" ..... ",
+			" ..... ",
+			" ..... ",
+			" ..... ",
+			"C     C"
+		],
+		[
+			"LLLLLLL",
+			"MMMMMMM",
+			"       ",
+			"MMMMMMM",
+			"LLLLLLL",
+			"       ",
+			"       ",
+			"       ",
+			"       "
+		],
+		[
+			"       ",
+			"       ",
+			"LLLLLLL",
+			"       ",
+			"       ",
+			"       ",
+			"       ",
+			"       ",
+			"       "
+		]
+	]
+}

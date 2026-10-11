@@ -6,6 +6,7 @@
 
 # Loom / Minecraft run directories
 run/
+run-autotest/
 logs/
 
 # IDE

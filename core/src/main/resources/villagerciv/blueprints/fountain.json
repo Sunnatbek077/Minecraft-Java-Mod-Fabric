@@ -1,0 +1,85 @@
+{
+	"id": "fountain",
+	"name": "Fountain",
+	"category": "public",
+	"beds": 0,
+	"cost": {"wood": 20, "stone": 160},
+	"late": "l",
+	"palette": {
+		"S": "minecraft:stone_bricks",
+		"p": "minecraft:polished_andesite",
+		"C": "minecraft:chiseled_stone_bricks",
+		"w": "minecraft:water",
+		"e": "minecraft:spruce_stairs[facing=west,half=bottom]",
+		"a": "minecraft:spruce_stairs[facing=east,half=bottom]",
+		"l": "minecraft:lantern[hanging=false]"
+	},
+	"layers": [
+		[
+			"         ",
+			" ppppppp ",
+			" pSSSSSp ",
+			" pSSSSSp ",
+			" pSSSSSp ",
+			" pSSSSSp ",
+			" pSSSSSp ",
+			" ppppppp ",
+			"         "
+		],
+		[
+			"         ",
+			" e  l  a ",
+			"  SSSSS  ",
+			"  S...S  ",
+			" lS.C.Sl ",
+			"  S...S  ",
+			"  SSSSS  ",
+			" e  l  a ",
+			"         "
+		],
+		[
+			"         ",
+			"         ",
+			"         ",
+			"         ",
+			"    C    ",
+			"         ",
+			"         ",
+			"         ",
+			"         "
+		],
+		[
+			"         ",
+			"         ",
+			"         ",
+			"         ",
+			"    C    ",
+			"         ",
+			"         ",
+			"         ",
+			"         "
+		],
+		[
+			"         ",
+			"         ",
+			"         ",
+			"         ",
+			"    w    ",
+			"         ",
+			"         ",
+			"         ",
+			"         "
+		],
+		[
+			"         ",
+			"         ",
+			"         ",
+			"         ",
+			"         ",
+			"         ",
+			"         ",
+			"         ",
+			"         "
+		]
+	]
+}

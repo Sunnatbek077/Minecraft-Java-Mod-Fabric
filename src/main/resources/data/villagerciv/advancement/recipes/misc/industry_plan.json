@@ -1,0 +1,25 @@
+{
+	"parent": "minecraft:recipes/root",
+	"criteria": {
+		"always": {
+			"trigger": "minecraft:tick"
+		},
+		"has_the_recipe": {
+			"conditions": {
+				"recipes": "villagerciv:industry_plan"
+			},
+			"trigger": "minecraft:recipe_unlocked"
+		}
+	},
+	"requirements": [
+		[
+			"has_the_recipe",
+			"always"
+		]
+	],
+	"rewards": {
+		"recipes": [
+			"villagerciv:industry_plan"
+		]
+	}
+}

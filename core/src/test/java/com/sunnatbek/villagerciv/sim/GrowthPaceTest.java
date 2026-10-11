@@ -103,6 +103,15 @@ class GrowthPaceTest {
 		for (int day = 0; day < 60 && settlement.stage() != SettlementStage.TOWN; day++) {
 			headless.runDays(1);
 			sizes.add(settlement.size());
+			// The land round a first Town Center does not always hold the forty a town needs. A
+			// village that has filled it is given its charter, as its patron would.
+			if (settlement.mayExpand()) {
+				TerrainSnapshot wide = new TerrainSnapshot(0, 0, Founding.EXPANDED_RADIUS);
+				for (int i = 0; i < wide.columnCount(); i++) {
+					wide.set(i, 64, Surface.SOIL);
+				}
+				headless.simulation().expand(settlement, SiteSurvey.analyse(wide).plots());
+			}
 		}
 		assertEquals(SettlementStage.TOWN, settlement.stage(), "population by day: " + sizes);
 		assertEquals(3, promotions.size());

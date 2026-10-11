@@ -1,0 +1,104 @@
+{
+	"id": "turf_house",
+	"name": "Turf House",
+	"category": "housing",
+	"beds": 2,
+	"min_stage": 1,
+	"cost": {"wood": 180, "stone": 100},
+	"late": "EFGHLOPQRS",
+	"palette": {
+		"A": "minecraft:spruce_planks",
+		"B": "minecraft:cobblestone",
+		"C": "minecraft:mossy_cobblestone",
+		"D": "minecraft:dark_oak_planks",
+		"E": "minecraft:lime_bed[facing=north,part=head]",
+		"F": "minecraft:lime_bed[facing=north,part=foot]",
+		"G": "minecraft:chest[facing=south]",
+		"H": "minecraft:dark_oak_door[half=lower,facing=north,hinge=left]",
+		"I": "minecraft:smoker[facing=south]",
+		"J": "minecraft:barrel[facing=up]",
+		"K": "minecraft:glass_pane",
+		"L": "minecraft:dark_oak_door[half=upper,facing=north,hinge=left]",
+		"M": "minecraft:moss_block",
+		"N": "minecraft:dark_oak_log[axis=x]",
+		"O": "minecraft:lantern[hanging=true]",
+		"P": "minecraft:poppy",
+		"Q": "minecraft:dandelion",
+		"R": "minecraft:cornflower",
+		"S": "minecraft:fern",
+		"T": "minecraft:cobblestone_wall",
+		"U": "minecraft:dirt_path"
+	},
+	"layers": [
+		[
+			"         ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			"    U    "
+		],
+		[
+			"         ",
+			" BCCCCBB ",
+			" CEE..IC ",
+			" CFF...C ",
+			" C....JC ",
+			" CGG...C ",
+			" DDDHDDD ",
+			"         "
+		],
+		[
+			"         ",
+			" BCKCKBB ",
+			" C.....C ",
+			" K.....K ",
+			" C.....C ",
+			" K.....K ",
+			" DKDLDKD ",
+			"         "
+		],
+		[
+			"MMMMMMMMM",
+			"MMMMMMBMM",
+			"MM.....MM",
+			"MM.....MM",
+			"MM..O..MM",
+			"MM.....MM",
+			"MMMMMMMMM",
+			"NNNNNNNNN"
+		],
+		[
+			"         ",
+			" MMMMMBM ",
+			" MMMMMMM ",
+			"SMMMMMMM ",
+			" MMMMMMMS",
+			" MMMMMMM ",
+			" MMMMMMM ",
+			"         "
+		],
+		[
+			"         ",
+			"      B  ",
+			"  P      ",
+			"     Q   ",
+			"         ",
+			"   R  P  ",
+			"         ",
+			"         "
+		],
+		[
+			"         ",
+			"      T  ",
+			"         ",
+			"         ",
+			"         ",
+			"         ",
+			"         ",
+			"         "
+		]
+	]
+}

@@ -38,6 +38,18 @@ final class TownCenterBlock extends Block {
 			}
 			return InteractionResult.SUCCESS;
 		}
+		if (stack.is(ModContent.EXPANSION_CHARTER)) {
+			if (player instanceof ServerPlayer serverPlayer) {
+				EmbodimentController embodiment = VillagerCivMod.embodiment();
+				Settlement settlement = embodiment == null ? null : embodiment.settlementAt(pos);
+				FoundingHandler founding = VillagerCivMod.founding();
+				if (settlement == null || founding == null) {
+					return InteractionResult.PASS;
+				}
+				founding.proposeExpansion(serverPlayer, settlement, stack);
+			}
+			return InteractionResult.SUCCESS;
+		}
 		CommodityValues.Value value = CommodityValues.of(stack);
 		if (value == null) {
 			// Not something a stockpile wants: fall through to opening the settlement screen.

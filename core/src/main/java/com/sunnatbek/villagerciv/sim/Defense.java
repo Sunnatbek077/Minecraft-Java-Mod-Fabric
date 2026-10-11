@@ -83,9 +83,9 @@ public final class Defense {
 		List<Building> gates = new ArrayList<>();
 		for (Building building : settlement.buildings()) {
 			if (building.stage() == Building.Stage.COMPLETE) {
-				if (building.blueprint().equals(Fortification.TOWER)) {
+				if (Fortification.isTower(building.blueprint())) {
 					towers.add(building);
-				} else if (building.blueprint().equals(Fortification.GATE)) {
+				} else if (Fortification.isGate(building.blueprint())) {
 					gates.add(building);
 				}
 			}

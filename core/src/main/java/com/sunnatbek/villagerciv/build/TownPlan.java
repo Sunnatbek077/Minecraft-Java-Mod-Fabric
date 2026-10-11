@@ -17,6 +17,8 @@ import java.util.List;
 public final class TownPlan {
 	public static final int STREET_LENGTH = 28;
 	private static final int MAX_STREETS = 12;
+	/** Streets a settlement may add once it has been allowed to grow beyond its first wall. */
+	private static final int EXTRA_STREETS = 60;
 	/** Nothing is built this close to the Town Center: it keeps a small square around it. */
 	private static final int CENTER_CLEARANCE = 3;
 	/** Off the streets, one cell in this many of a lot may be uneven or wet ground: the builders level it. */
@@ -220,10 +222,30 @@ public final class TownPlan {
 	 * angle. Candidates are tried in random order and the first that runs over usable land wins.
 	 */
 	private static boolean growStreet(Settlement settlement, IdGenerator random) {
-		if (settlement.streets().size() >= MAX_STREETS) {
+		if (settlement.streets().size() >= MAX_STREETS + EXTRA_STREETS * settlement.expansion()) {
 			return false;
 		}
 		List<Street> candidates = new ArrayList<>();
+		// An enlarged settlement grows out through the gates of its first wall: a street leaves
+		// from each, and the new quarters are laid out along those and what branches off them.
+		if (settlement.expansion() > 0) {
+			for (Building building : settlement.buildings()) {
+				if (Fortification.isGate(building.blueprint()) && building.stage() == Building.Stage.COMPLETE) {
+					int cx = building.x() + building.sizeX() / 2;
+					int cz = building.z() + building.sizeZ() / 2;
+					int dx = Math.abs(cx - settlement.anchorX()) >= Math.abs(cz - settlement.anchorZ()) ? Integer.signum(cx - settlement.anchorX()) : 0;
+					int dz = dx == 0 ? Integer.signum(cz - settlement.anchorZ()) : 0;
+					candidates.add(new Street(cx + dx * 4, cz + dz * 4, dx, dz, STREET_LENGTH, 0));
+				}
+			}
+		}
+		// And, with or without a wall, on from where its streets end: the new land lies beyond them.
+		if (settlement.expansion() > 0) {
+			for (Street street : settlement.streets()) {
+				candidates.add(new Street(street.cellX(street.length() + 1, 0), street.cellZ(street.length() + 1, 0),
+						street.dx(), street.dz(), STREET_LENGTH, 0));
+			}
+		}
 		for (int[] direction : DIRECTIONS) {
 			candidates.add(new Street(settlement.anchorX() + direction[0] * 2, settlement.anchorZ() + direction[1] * 2,
 					direction[0], direction[1], STREET_LENGTH, 0));

@@ -16,6 +16,17 @@ loom {
 			// never comes back.
 			programArgs "--username", "Dev"
 		}
+		// An unattended run for checking the mod: opens the world "AutoTest" in a game directory
+		// of its own (so the developer's options and saves are left alone), fast-forwards it and
+		// stops. See AutoTest.java; started by tools/autotest.sh.
+		autotest {
+			client()
+			runDir "run-autotest"
+			programArgs "--username", "Dev", "--quickPlaySingleplayer", "AutoTest"
+			vmArg "-Dvillagerciv.autotest=${project.findProperty('autotestTicks') ?: '24000'}"
+			vmArg "-Dvillagerciv.autotest.showcase=${project.findProperty('autotestShowcase') ?: 'false'}"
+			vmArg "-Dvillagerciv.autotest.expand=${project.findProperty('autotestExpand') ?: 'false'}"
+		}
 	}
 
 	mods {

@@ -24,6 +24,8 @@ public enum ToolKind {
 			case LEVEL -> SHOVEL;
 			// The forge and the yard have their own fixed tools.
 			case SMITH, MASON, TRADE -> null;
+			// Animals are led and fed by hand.
+			case HERD -> null;
 		};
 	}
 

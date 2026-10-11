@@ -19,17 +19,26 @@ import java.util.Map;
  * character is looked up in the palette.
  *
  * @param storage palette keys of the chests that hold a settlement's stock, and what each holds
+ * @param minStage how far along a settlement has to be before it builds this of its own accord,
+ *                 as the ordinal of its stage: 0 for anything a camp would build
  * @param late palette keys placed only after everything else: things that hang from or lean on
  *             other blocks (doors, beds, lanterns), which would pop off if placed too early
  */
 public record Blueprint(String id, String name, Category category, int width, int height, int depth,
 		List<List<String>> layers, Map<Character, String> palette, String late, int beds, Map<Commodity, Integer> cost,
-		Map<Character, Commodity> storage) {
+		Map<Character, Commodity> storage, int minStage) {
 	public static final char LEAVE = ' ';
 	public static final char CLEAR = '.';
 	/** Ids of the main storehouse's designs start with this, followed by the tier: 1, 2, 3. */
 	public static final String MAIN_STORE = "great_store_";
 	public static final String SMITHY = "smithy";
+	/** The pens animals are kept in, one kind to each. */
+	public static final java.util.List<String> PENS = java.util.List.of("cattle_pen", "sheep_pen", "pig_sty", "chicken_coop");
+
+	public static boolean isPen(String id) {
+		return PENS.contains(id);
+	}
+
 	public static final String MASONS_YARD = "masons_yard";
 	public static final String MARKET = "market";
 
@@ -37,6 +46,8 @@ public record Blueprint(String id, String name, Category category, int width, in
 		SHELTER,
 		HOUSING,
 		STORAGE,
+		/** A place for everyone and nobody's home: a well, a tavern, a chapel. Good for the settlement's spirits. */
+		PUBLIC,
 		/** A place of one trade, such as the smithy: built once, and worked by those who hold that job. */
 		WORKSHOP,
 		/** Walls, gates and towers: built from the defence plan, not from the list of needs. */

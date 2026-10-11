@@ -15,15 +15,18 @@ import net.minecraft.world.entity.ai.goal.Goal;
 import java.util.EnumSet;
 
 /**
- * Filling holes in the settlement's ground, a layer of earth at a time. Every citizen has this
+ * Levelling the settlement's ground: cutting down what stands too high, filling what lies too low. Every citizen has this
  * goal twice. One is for the Leveller, whose job it is. The other is spare time put to use, for
  * anyone with nothing to do at the moment (no job, or a job that is waiting on crops or
  * saplings); that one ranks below real work, so it is dropped the moment there is some.
  */
 final class LandscapeGoal extends Goal {
-	private static final double REACH_SQR = 3.5 * 3.5;
+	private static final double REACH = 8.0;
+	/** Ground far below or above is worked on from further off: nobody climbs down into a pit, or up a cliff, to level it. */
+	private static final double REACH_FROM_THE_RIM = 16.0;
+	private static final int RIM_HEIGHT = 3;
 	private static final int REPATH_INTERVAL_TICKS = 20;
-	private static final int TRAVEL_TIMEOUT_TICKS = 400;
+	private static final int TRAVEL_TIMEOUT_TICKS = 100;
 	private static final int FILL_TICKS = 20;
 	private static final int LOOK_AGAIN_TICKS = 200;
 
@@ -99,7 +102,12 @@ final class LandscapeGoal extends Goal {
 			finished = true;
 			return;
 		}
-		if (entity.distanceToSqr(hole.getX() + 0.5, hole.getY() + 1, hole.getZ() + 0.5) <= REACH_SQR) {
+		// Near enough to work on it; or it cannot be walked to, and is worked on from where the
+		// citizen has got to.
+		double dx = hole.getX() + 0.5 - entity.getX();
+		double dz = hole.getZ() + 0.5 - entity.getZ();
+		double reach = Math.abs(hole.getY() + 1 - entity.getY()) > RIM_HEIGHT ? REACH_FROM_THE_RIM : REACH;
+		if (dx * dx + dz * dz <= reach * reach || travelled > TRAVEL_TIMEOUT_TICKS) {
 			entity.getNavigation().stop();
 			entity.citizen().setActivity(Activity.WORKING);
 			entity.getLookControl().setLookAt(hole.getX() + 0.5, hole.getY() + 1, hole.getZ() + 0.5);
@@ -109,11 +117,11 @@ final class LandscapeGoal extends Goal {
 				return;
 			}
 			timer = 0;
-			embodiment.landscaper().fill(level, settlement, hole);
+			embodiment.landscaper().grade(level, settlement, hole);
 			if (trade) {
 				Labor.reportProgress(entity.citizen(), embodiment.gameTick());
 			}
-			// On to the next one, the nearest: usually the same hole, a layer higher or a step along.
+			// On to the next one, the nearest: usually a step along.
 			hole = embodiment.landscaper().take(level, settlement, entity.blockPosition());
 			travelled = 0;
 			repathIn = 0;
@@ -124,10 +132,7 @@ final class LandscapeGoal extends Goal {
 			return;
 		}
 		entity.citizen().setActivity(Activity.WALKING);
-		if (++travelled > TRAVEL_TIMEOUT_TICKS) {
-			finished = true; // cannot get to it; the next look-over will note it again
-			return;
-		}
+		travelled++;
 		if (--repathIn <= 0 && embodiment.takePathSlot()) {
 			repathIn = REPATH_INTERVAL_TICKS;
 			entity.getNavigation().moveTo(hole.getX() + 0.5, hole.getY() + 1, hole.getZ() + 0.5, 0.6);

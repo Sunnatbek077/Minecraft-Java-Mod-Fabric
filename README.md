@@ -33,6 +33,14 @@ In game (operators): `/villagerciv status`, `/villagerciv preset <low|medium|hig
 (whether monsters hunt citizens; off by default),
 `/villagerciv debug create <name> | list | expeditions | settlements | export`.
 
+## Testing
+
+- `./gradlew test` runs the core's headless tests (no Minecraft involved).
+- `tools/autotest.sh [ticks] [world]` checks the mod in the real game without anyone at the keyboard: it copies a
+  saved world into `run-autotest/`, opens it, fast-forwards the given number of ticks (a 24000-tick day takes about
+  four and a half minutes), and prints a report of every settlement at intervals: stock, jobs, what each citizen
+  is doing, the state of the mines, and what is in the storehouse and the home chests. See `AutoTest.java`.
+
 ## Roadmap
 
 MVP = P0–P6: one settlement, 6 founders, up to ~30 citizens, alive without the player.
@@ -65,7 +73,11 @@ MVP = P0–P6: one settlement, 6 founders, up to ~30 citizens, alive without the
   are given beds, go home at night through doors that close behind them, and sleep in their own beds. First
   designs: hut, cottage, storehouse, and ten more houses of different sizes and materials (birch cabin,
   stone croft, longhouse, timber house, tower house, brick house, mossy lodge, weaver's house, manor, deepslate
-  hall; drawn by `tools/gen_houses.py`, each with a chest per bed). The wall is a second project built alongside
+  hall; drawn by `tools/gen_houses.py`, each with a chest per bed). Ten finer houses for villages and up
+  (`tools/gen_fine_houses.py`, `min_stage` 2): timber-framed, with a porch, window boxes with flowers, a hedge, rugs,
+  a kitchen corner and a table, and for six of them an upper storey jettied over the door, reached by a stair,
+  with books, a lectern and decorated pots. A settlement only picks designs it can pay for. `/villagerciv debug
+  showcase [design]` sets the house designs down in a row for a look. The wall is a second project built alongside
   the ordinary one. Main storehouse: a 25x25 lot is set aside beside the Town Center at founding and the
   building grows on it with the stage (hall, wings, walled yard; `tools/gen_store.py`). Its chests mirror the
   ledger both ways while a player is near; workers fill the chest by their bed and carry it over in the evening. Where no street lot
@@ -120,4 +132,12 @@ MVP = P0–P6: one settlement, 6 founders, up to ~30 citizens, alive without the
   smith and mason at work; Town to City at 100 with a merchant. A settlement under half the size its stage took falls
   back a stage after a day. A child is apprenticed to the trade with the most untaught hands in it. *Still open:*
   blueprint upgrades, road network.
-- [ ] P7 LOD & scale · P10 Expansion · P11 Trade · P12 Rival civilizations
+- [ ] **P10 Expansion & Multi-Settlement** — *done:* the Expansion Charter (blank plan + Surveyor's Seal; the seal is
+  two gold ingots, a diamond, a compass and an emerald), given at
+  the Town Center of a Town: the land is surveyed out to 96 blocks and claimed, streets leave through the gates of
+  the first wall, fields, groves and mines may lie further out, and a walled settlement plans a second ring 88 blocks
+  out in stone (`rampart_N`, `stone_gate`, `stone_tower`), the first staying inside it. Public buildings follow (well,
+  tavern, chapel, fountain; `tools/gen_stage2.py`), each lifting morale. Builders reckon work on sites the game is not
+  running rather than walking into them. *Still open:* colonies (a town founding a second settlement), logistics
+  between settlements, districts, the Civilization AI.
+- [ ] P7 LOD & scale · P11 Trade · P12 Rival civilizations
