@@ -29,7 +29,13 @@ public enum JobType {
 	 * on. Its place is the pen, one herder to each. The pens come with the leave to grow beyond
 	 * the first wall.
 	 */
-	HERD(Commodity.FOOD, Role.HERDER, 1, 800);
+	HERD(Commodity.FOOD, Role.HERDER, 1, 800),
+	/**
+	 * Keeping an enchantment: one librarian to each enchantment there is, each at a lectern of
+	 * its own in a library. It yields no goods. What it gives is the enchantment itself, in a
+	 * book, to the patron who asks for it.
+	 */
+	STUDY(null, Role.LIBRARIAN, 1, 0);
 
 	/** Id of the design of the workshop this job is done in, or null for a job that has none. */
 	public String workshop() {

@@ -13,18 +13,17 @@
 		"D": "minecraft:oak_fence",
 		"E": "minecraft:stripped_oak_log[axis=y]",
 		"F": "minecraft:spruce_slab[type=bottom]",
-		"G": "minecraft:hay_block",
-		"H": "minecraft:coarse_dirt",
+		"G": "minecraft:coarse_dirt",
+		"H": "minecraft:hay_block",
 		"I": "minecraft:oak_fence_gate[facing=south]",
-		"J": "minecraft:water_cauldron[level=3]",
-		"K": "minecraft:composter"
+		"J": "minecraft:water_cauldron[level=3]"
 	},
 	"layers": [
 		[
 			"AAAAAAAAAAA",
 			"AAAAAAAAAAA",
-			"AAHHAAAAAAA",
-			"AAHHAAAAAAA",
+			"AAGGAAAAAAA",
+			"AAGGAAAAAAA",
 			"AAAAAAAAAAA",
 			"AAAAAAAAAAA",
 			"AAAAAAAAAAA",
@@ -33,19 +32,19 @@
 		],
 		[
 			"BDDDDDDDDDB",
-			"DEGGE...JJD",
-			"D.........D",
+			"DE..E.....D",
+			"D.HH...JJ.D",
 			"DE..E.....D",
 			"D.........D",
 			"D.........D",
 			"D.........D",
-			"D........KD",
+			"D.........D",
 			"BDDDDIDDDDB"
 		],
 		[
 			"B.........B",
-			".EG.E......",
-			"...........",
+			".E..E......",
+			"..HH.......",
 			".E..E......",
 			"...........",
 			"...........",

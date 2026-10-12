@@ -55,20 +55,27 @@ public final class Pens {
 		};
 	}
 
-	/** What one grown animal from this pen comes to in the store: three meals' worth, whatever the animal. */
+	/**
+	 * What one grown animal from this pen comes to in the store: its meat, and whatever else it
+	 * gives. A cow leaves a hide, a sheep its fleece, a hen its eggs and feathers.
+	 */
 	public static List<ItemStack> yieldOf(String blueprint) {
 		List<ItemStack> goods = new ArrayList<>();
-		Item meat = switch (blueprint) {
-			case "cattle_pen" -> Items.BEEF;
-			case "sheep_pen" -> Items.MUTTON;
-			case "pig_sty" -> Items.PORKCHOP;
-			default -> Items.CHICKEN;
-		};
-		if (meat == Items.CHICKEN) {
-			goods.add(new ItemStack(Items.CHICKEN, 1));
-			goods.add(new ItemStack(Items.EGG, 2));
-		} else {
-			goods.add(new ItemStack(meat, 3));
+		switch (blueprint) {
+			case "cattle_pen" -> {
+				goods.add(new ItemStack(Items.BEEF, 3));
+				goods.add(new ItemStack(Items.LEATHER, 1));
+			}
+			case "sheep_pen" -> {
+				goods.add(new ItemStack(Items.MUTTON, 2));
+				goods.add(new ItemStack(Items.WOOL.white(), 2));
+			}
+			case "pig_sty" -> goods.add(new ItemStack(Items.PORKCHOP, 3));
+			default -> {
+				goods.add(new ItemStack(Items.CHICKEN, 1));
+				goods.add(new ItemStack(Items.EGG, 2));
+				goods.add(new ItemStack(Items.FEATHER, 1));
+			}
 		}
 		return goods;
 	}
@@ -85,6 +92,41 @@ public final class Pens {
 			return List.of();
 		}
 		return level.getEntitiesOfClass(Animal.class, inside(pen), animal -> animal.getType() == kind && animal.isAlive());
+	}
+
+	/** Whether a pen holds as many as it is kept at: one more would have to go to the store. */
+	public static boolean isFull(ServerLevel level, Building pen) {
+		return animals(level, pen).size() >= FULL;
+	}
+
+	/**
+	 * The animals of a pen's kind that are loose on the settlement's ground: got out, or wandered
+	 * in from the wild. They are the herder's to fetch.
+	 */
+	public static List<Animal> strays(ServerLevel level, com.sunnatbek.villagerciv.sim.Settlement settlement, Building pen) {
+		EntityType<? extends Animal> kind = animalOf(pen.blueprint());
+		if (kind == null || pen.y() == Building.Y_UNKNOWN) {
+			return List.of();
+		}
+		int[] bounds = settlement.groundBounds();
+		AABB ground = new AABB(bounds[0] - 6, pen.y() - 6, bounds[1] - 6, bounds[2] + 7, pen.y() + 24, bounds[3] + 7);
+		AABB inside = inside(pen).inflate(0.5, 2.0, 0.5);
+		return level.getEntitiesOfClass(Animal.class, ground,
+				animal -> animal.getType() == kind && animal.isAlive() && !inside.contains(animal.position()));
+	}
+
+	/** Sets a caught stray down in its pen. */
+	public static void bringIn(ServerLevel level, Building pen, Animal stray) {
+		level.sendParticles(ParticleTypes.POOF, stray.getX(), stray.getY() + 0.5, stray.getZ(), 6, 0.3, 0.3, 0.3, 0.02);
+		stray.getNavigation().stop();
+		stray.snapTo(pen.x() + pen.sizeX() / 2 + 0.5, pen.y() + 1, pen.z() + pen.sizeZ() / 2 + 0.5, stray.getYRot(), 0.0f);
+		stray.setPersistenceRequired();
+	}
+
+	/** Takes an animal for the store, wherever it stands; what it yields is in {@link #yieldOf}. */
+	public static void take(ServerLevel level, Animal animal) {
+		level.sendParticles(ParticleTypes.POOF, animal.getX(), animal.getY() + 0.5, animal.getZ(), 8, 0.3, 0.3, 0.3, 0.02);
+		animal.discard();
 	}
 
 	/** One round of the herder's work at a pen. */
@@ -109,9 +151,7 @@ public final class Pens {
 			}
 		}
 		if (grown.size() > KEPT) {
-			Animal taken = grown.get(level.getRandom().nextInt(grown.size()));
-			level.sendParticles(ParticleTypes.POOF, taken.getX(), taken.getY() + 0.5, taken.getZ(), 8, 0.3, 0.3, 0.3, 0.02);
-			taken.discard();
+			take(level, grown.get(level.getRandom().nextInt(grown.size())));
 			return Tended.TAKEN;
 		}
 		if (animals.size() < FULL && grown.size() >= 2) {

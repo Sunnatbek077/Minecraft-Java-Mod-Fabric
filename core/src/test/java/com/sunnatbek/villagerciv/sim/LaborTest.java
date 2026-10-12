@@ -123,6 +123,46 @@ class LaborTest {
 	}
 
 	@Test
+	void thoseCalledAwayToAShortageGoBackToTheirOwnWork() {
+		Settlement settlement = settle(8, Surface.SOIL);
+		simulation.adoptPlan(settlement, Policy.AGRARIAN);
+		settlement.ledger().add(Commodity.FOOD, 30_000);
+		settlement.ledger().add(Commodity.WOOD, 30_000);
+		settlement.ledger().add(Commodity.STONE, 30_000);
+		for (int day = 0; day < 30 && settlement.size() < 24; day++) {
+			headless.runDays(1);
+		}
+		java.util.Map<Citizen, JobType> before = new java.util.HashMap<>();
+		for (Citizen citizen : settlement.members()) {
+			if (citizen.job() != null && citizen.job() != JobType.BUILD) {
+				before.put(citizen, citizen.job());
+			}
+		}
+		long minersBefore = count(settlement, JobType.MINE);
+		assertEquals(0, settlement.calledAway(), "nothing is short: everyone is at their own work");
+
+		// The stone is gone: hands are called to the mines from other work.
+		settlement.ledger().take(Commodity.STONE, settlement.ledger().available(Commodity.STONE));
+		headless.runTicks(Labor.CYCLE_TICKS * 30);
+		assertTrue(settlement.shortage(Commodity.STONE) > 0);
+		assertTrue(count(settlement, JobType.MINE) > minersBefore, "more miners: " + count(settlement, JobType.MINE) + " after " + minersBefore);
+		assertTrue(settlement.calledAway() > 0, "and they are away from their own work");
+
+		// It is made good, and they go back to what they did.
+		settlement.ledger().add(Commodity.STONE, 30_000);
+		for (int cycle = 0; cycle < 240 && settlement.shortage(Commodity.STONE) > 0; cycle++) {
+			headless.runTicks(Labor.CYCLE_TICKS);
+		}
+		headless.runTicks(Labor.CYCLE_TICKS * 6);
+		assertEquals(0, settlement.shortage(Commodity.STONE));
+		long back = before.entrySet().stream().filter(e -> settlement.members().contains(e.getKey()) && e.getKey().job() == e.getValue()).count();
+		long still = before.keySet().stream().filter(c -> settlement.members().contains(c) && c.job() != JobType.BUILD && c.job() != null).count();
+		// Not every one: with the store full again the settlement wants fewer farmers than it had, and so on.
+		assertTrue(back * 10 >= still * 7, "most are back at their own work: " + back + " of " + still);
+		assertEquals(0, settlement.calledAway());
+	}
+
+	@Test
 	void aPenTakesOneHerderWhoBringsInFood() {
 		Settlement settlement = settle(8, Surface.SOIL);
 		headless.runTicks(Labor.CYCLE_TICKS * 3);

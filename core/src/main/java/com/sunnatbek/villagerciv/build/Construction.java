@@ -54,12 +54,17 @@ public final class Construction {
 		if (settlement.activeBuilding() == null) {
 			startBuilding(settlement, library, random);
 		}
-		if (settlement.activeWallPiece() == null && !settlement.wallPlan().isEmpty()) {
+		// One piece of wall for each crew the settlement has; a crew that is free takes the next.
+		for (int crew = settlement.activeWallPieces(); crew < settlement.wallCrews() && !settlement.wallPlan().isEmpty(); crew++) {
+			int planned = settlement.wallPlan().size();
 			// The wall takes what is left over: materials the next building is waiting for are
 			// not spent on it, or a costly building would never get its turn.
 			Blueprint waiting = cheapestWanted(settlement, library);
 			startWallPiece(settlement, library, waiting == null ? 0 : waiting.cost(Commodity.WOOD),
 					waiting == null ? 0 : waiting.cost(Commodity.STONE));
+			if (settlement.wallPlan().size() == planned) {
+				break; // it could not be afforded: the others would fare no better
+			}
 		}
 	}
 
@@ -310,10 +315,10 @@ public final class Construction {
 		Ledger ledger = settlement.ledger();
 		boolean rich = ledger.available(Commodity.WOOD) >= RICH_WOOD && ledger.available(Commodity.STONE) >= RICH_STONE;
 		// And a big one further still: a town that built four beds ahead would have its builders
-		// standing about most of the day. With stores piled high it builds for half as many
-		// people again as it has: wood and stone lying in a storehouse house nobody.
+		// standing about most of the day. With stores piled high it builds for a fifth as many
+		// people again as it has; more than that and the place is all houses, half of them empty.
 		boolean overflowing = ledger.available(Commodity.WOOD) >= 10 * RICH_WOOD && ledger.available(Commodity.STONE) >= 10 * RICH_STONE;
-		int room = Math.max(settlement.growthRoom() * (rich ? 2 : 1), overflowing ? settlement.size() / 2 : rich ? settlement.size() / 4 : 0);
+		int room = Math.max(settlement.growthRoom() * (rich ? 2 : 1), overflowing ? settlement.size() / 5 : 0);
 		if (thriving && settlement.plannedBeds() < Math.min(settlement.size() + room, Population.softCap(settlement.stage()))) {
 			return new Choice(Blueprint.Category.HOUSING);
 		}
@@ -326,11 +331,13 @@ public final class Construction {
 	 * the stage a settlement has to have reached, and whether it takes that leave to grow.
 	 */
 	private static final String[] WORKSHOPS = {Blueprint.SMITHY, Blueprint.MASONS_YARD, Blueprint.MARKET,
-			"well", "tavern", "chapel", "fountain", "cattle_pen", "sheep_pen", "chicken_coop", "pig_sty"};
+			"well", "tavern", "chapel", "fountain", "cattle_pen", "sheep_pen", "chicken_coop", "pig_sty", Blueprint.LIBRARY};
 	private static final SettlementStage[] WORKSHOP_STAGES = {SettlementStage.SETTLEMENT, SettlementStage.VILLAGE, SettlementStage.VILLAGE,
 			SettlementStage.TOWN, SettlementStage.TOWN, SettlementStage.TOWN, SettlementStage.TOWN,
 			// The pens come with the land beyond the first wall, whatever the settlement is called by then.
-			SettlementStage.VILLAGE, SettlementStage.VILLAGE, SettlementStage.VILLAGE, SettlementStage.VILLAGE};
+			SettlementStage.VILLAGE, SettlementStage.VILLAGE, SettlementStage.VILLAGE, SettlementStage.VILLAGE,
+			// A library is a town's; and unlike the rest, a town builds as many as its librarians need.
+			SettlementStage.TOWN};
 	private static final int FIRST_PUBLIC = 3;
 
 	/** The next workshop the settlement is big enough for and does not have yet (standing, planned or being built). */
@@ -341,8 +348,20 @@ public final class Construction {
 			}
 			String design = WORKSHOPS[i];
 			boolean has = false;
+			int count = 0;
 			for (Building building : settlement.buildings()) {
 				has |= building.blueprint().equals(design);
+				count += building.blueprint().equals(design) ? 1 : 0;
+			}
+			if (design.equals(Blueprint.LIBRARY)) {
+				// Another library once the lecterns of those that stand are all taken, until there
+				// is a lectern for every enchantment.
+				int seats = count * Blueprint.LIBRARY_SEATS;
+				int taken = 0;
+				for (com.sunnatbek.villagerciv.sim.Citizen citizen : settlement.members()) {
+					taken += citizen.job() == com.sunnatbek.villagerciv.sim.JobType.STUDY ? 1 : 0;
+				}
+				has = seats >= settlement.studies() || taken < seats;
 			}
 			if (!has && settlement.workshopSoughtAtStreets(i) != settlement.streets().size()) {
 				return library.get(design).orElse(null);

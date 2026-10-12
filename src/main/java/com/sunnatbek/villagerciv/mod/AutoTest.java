@@ -36,6 +36,8 @@ final class AutoTest {
 	private AutoTest() {
 	}
 
+	private static boolean bookBought;
+
 	static void tick(MinecraftServer server, Simulation simulation, EmbodimentController embodiment) {
 		if (TICKS <= 0 || done || simulation == null || embodiment == null || server.getPlayerList().getPlayerCount() == 0) {
 			return;
@@ -60,16 +62,68 @@ final class AutoTest {
 				run(server, "execute as @p at @p run villagerciv debug showcase");
 				VillagerCivMod.LOGGER.info("AUTOTEST showcase placed");
 			}
-			if (Boolean.getBoolean("villagerciv.autotest.expand") && VillagerCivMod.founding() != null) {
-				// As if the patron had handed every settlement its Expansion Charter.
+			String charter = System.getProperty("villagerciv.autotest.expand", "false").toLowerCase(java.util.Locale.ROOT);
+			if (!charter.equals("false") && VillagerCivMod.founding() != null) {
+				// As if the patron had handed every settlement a charter: "true" for the plain
+				// one, the name of an outline for one of the others, "grand" for a city's.
 				for (Settlement settlement : simulation.state().settlements().all()) {
-					settlement.setStage(com.sunnatbek.villagerciv.sim.SettlementStage.TOWN);
-					VillagerCivMod.founding().expand(settlement, () -> VillagerCivMod.LOGGER.info("AUTOTEST expanded {}: wall pieces {}, plots {}",
-							settlement.name(), settlement.wallPieces(), settlement.plots().size()));
+					// "grand:round" and the like: a city's charter, with the outline changed for the test.
+					if (charter.startsWith("grand:")) {
+						settlement.setWallShape(com.sunnatbek.villagerciv.build.ShapedWall.Shape.valueOf(charter.substring(6).toUpperCase(java.util.Locale.ROOT)));
+						charter = "grand";
+					}
+					com.sunnatbek.villagerciv.build.ShapedWall.Shape shape = charter.equals("grand") ? settlement.wallShape()
+							: charter.equals("true") ? com.sunnatbek.villagerciv.build.ShapedWall.Shape.SQUARE
+							: com.sunnatbek.villagerciv.build.ShapedWall.Shape.valueOf(charter.toUpperCase(java.util.Locale.ROOT));
+					if (settlement.stage().ordinal() < com.sunnatbek.villagerciv.sim.SettlementStage.TOWN.ordinal()) {
+						settlement.setStage(com.sunnatbek.villagerciv.sim.SettlementStage.TOWN);
+					}
+					if (charter.equals("grand")) {
+						// The test does not wait for a city to finish its wall: it is taken as finished.
+						settlement.setStage(com.sunnatbek.villagerciv.sim.SettlementStage.CITY);
+						settlement.setWallPlan(java.util.List.of(), settlement.wallPieces());
+						// Nor for its miners to cut the stone of a great wall.
+						settlement.ledger().add(Commodity.STONE, 150_000);
+						settlement.ledger().add(Commodity.WOOD, 20_000);
+					}
+					int before = settlement.wallPieces();
+					VillagerCivMod.founding().expand(settlement, shape, () -> VillagerCivMod.LOGGER.info("AUTOTEST expanded {} to stage {} as {}: {} new wall pieces, plots {}",
+							settlement.name(), settlement.expansion() + 1, settlement.wallShape(), settlement.wallPieces() - before, settlement.plots().buildableCount()));
 				}
 			}
 			run(server, "tick sprint " + TICKS);
 			return;
+		}
+		if (now - startedAt == 3_000 && Boolean.getBoolean("villagerciv.autotest.shortage")) {
+			// The stone is gone, all at once: who is called away to make it good, and do they go back?
+			for (Settlement settlement : simulation.state().settlements().all()) {
+				int stone = settlement.ledger().available(Commodity.STONE);
+				settlement.ledger().take(Commodity.STONE, stone);
+				VillagerCivMod.LOGGER.info("AUTOTEST shortage staged: {} stone taken out of the store", stone);
+			}
+		}
+		if (Boolean.getBoolean("villagerciv.autotest.roam") && (now - startedAt) % 1_500 == 700) {
+			// A wall is only put into the world where a player is near: the watcher goes round it.
+			for (Settlement settlement : simulation.state().settlements().all()) {
+				int stop = (int) ((now - startedAt) / 1_500) % 8;
+				double angle = Math.PI / 4 * stop;
+				int reach = com.sunnatbek.villagerciv.build.ShapedWall.radius(Math.max(1, settlement.expansion())) - 16;
+				run(server, "tp @p " + (settlement.anchorX() + (int) (Math.cos(angle) * reach)) + " " + (settlement.grade() + 45) + " "
+						+ (settlement.anchorZ() + (int) (Math.sin(angle) * reach)));
+				break;
+			}
+		}
+		if (now - startedAt == 1_000) {
+			// Something for the patrols to do: monsters set down inside the settlement, by day.
+			for (Settlement settlement : simulation.state().settlements().all()) {
+				int y = settlement.grade() + 1;
+				run(server, "summon husk " + (settlement.anchorX() + 22) + " " + y + " " + (settlement.anchorZ() + 9));
+				run(server, "summon husk " + (settlement.anchorX() - 30) + " " + y + " " + (settlement.anchorZ() - 25));
+				run(server, "summon husk " + (settlement.anchorX() + 60) + " " + y + " " + (settlement.anchorZ() + 60));
+				run(server, "summon creeper " + (settlement.anchorX() - 55) + " " + y + " " + (settlement.anchorZ() + 40));
+				VillagerCivMod.LOGGER.info("AUTOTEST intruders set down: 3 husks and a creeper");
+				break;
+			}
 		}
 		if (now >= nextReport) {
 			nextReport = now + REPORT_EVERY;
@@ -99,7 +153,7 @@ final class AutoTest {
 	/** Whether the mod's recipes, the advancements that teach them, and its creative tab all loaded. */
 	private static void checkContent(MinecraftServer server) {
 		String[] recipes = {"recruitment_scroll", "founding_charter", "blank_plan", "agrarian_plan", "industry_plan", "military_plan",
-				"surveyors_seal", "expansion_charter"};
+				"surveyors_seal", "pentagon_charter", "hexagon_charter", "octagon_charter", "round_charter", "grand_charter", "expansion_charter"};
 		StringBuilder missing = new StringBuilder();
 		for (String name : recipes) {
 			var key = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.RECIPE, ModContent.id(name));
@@ -161,6 +215,8 @@ final class AutoTest {
 				doing.merge((citizen.isEmbodied() ? "" : "nobody:") + citizen.activity(), 1, Integer::sum);
 			}
 			VillagerCivMod.LOGGER.info("AUTOTEST   jobs {} | doing {}", jobs, doing);
+			VillagerCivMod.LOGGER.info("AUTOTEST   shortage food {} wood {} stone {} | called away from their own work: {}", settlement.shortage(Commodity.FOOD),
+					settlement.shortage(Commodity.WOOD), settlement.shortage(Commodity.STONE), settlement.calledAway());
 
 			for (WorkSite site : settlement.sites()) {
 				VillagerCivMod.LOGGER.info("AUTOTEST   site {} {} at {},{},{} progress={} exhausted={}", site.id(), site.type(), site.x(), site.y(), site.z(),
@@ -208,6 +264,34 @@ final class AutoTest {
 					building++;
 				}
 			}
+			{
+				int swords = 0;
+				int bows = 0;
+				for (Citizen c : settlement.members()) {
+					swords += c.patrol() == Citizen.Patrol.SWORD ? 1 : 0;
+					bows += c.patrol() == Citizen.Patrol.CROSSBOW ? 1 : 0;
+				}
+				net.minecraft.world.entity.monster.Monster near = embodiment.intruder(level, settlement, server.getPlayerList().getPlayers().getFirst(), false);
+				VillagerCivMod.LOGGER.info("AUTOTEST   citizens standing inside one another: {}", embodiment.overlapping());
+				VillagerCivMod.LOGGER.info("AUTOTEST   patrol swords {} crossbows {} | a monster on the ground: {}", swords, bows,
+						near == null ? "none" : near.getType().toShortString() + " #" + near.getId() + " at " + near.blockPosition().toShortString()
+								+ " health " + (int) near.getHealth() + ", " + embodiment.intruderCount(settlement) + " in all");
+			}
+			{
+				int[][] rings = new int[3][4];
+				for (com.sunnatbek.villagerciv.build.Building b : settlement.buildings()) {
+					if (b.category() == com.sunnatbek.villagerciv.build.Blueprint.Category.DEFENSE) {
+						int[] ring = rings[com.sunnatbek.villagerciv.build.Fortification.ringOf(b.blueprint())];
+						ring[0]++;
+						ring[1] += b.stage() == com.sunnatbek.villagerciv.build.Building.Stage.COMPLETE ? 1 : 0;
+						ring[2] += b.applied() >= b.totalSteps() ? 1 : 0;
+						ring[3] += b.stage() == com.sunnatbek.villagerciv.build.Building.Stage.CONDEMNED ? 1 : 0;
+					}
+				}
+				VillagerCivMod.LOGGER.info("AUTOTEST   rings (pieces/complete/in the world/condemned): wood {} stone {} great {} | still planned {} | shape {} stage {}",
+						java.util.Arrays.toString(rings[0]), java.util.Arrays.toString(rings[1]), java.util.Arrays.toString(rings[2]), settlement.wallPlan().size(),
+						settlement.wallShape(), settlement.expansion() + 1);
+			}
 			VillagerCivMod.LOGGER.info("AUTOTEST   construction {} out-of-room {} planned-beds {}", com.sunnatbek.villagerciv.build.Construction.status(settlement, simulation.blueprints()), settlement.isOutOfRoom(), settlement.plannedBeds());
 			VillagerCivMod.LOGGER.info("AUTOTEST   buildings {} unfinished {} guards {} threat {}", settlement.buildings().size(), building, settlement.guards(),
 					settlement.threat());
@@ -235,9 +319,54 @@ final class AutoTest {
 			StringBuilder pens = new StringBuilder();
 			for (com.sunnatbek.villagerciv.build.Building pen : settlement.pens()) {
 				java.util.List<net.minecraft.world.entity.animal.Animal> kept = Pens.animals(level, pen);
-				pens.append(pen.blueprint()).append('=').append(kept.size()).append('(').append(kept.stream().filter(a -> a.isBaby()).count()).append(" young) ");
+				pens.append(pen.blueprint()).append('=').append(kept.size()).append('(').append(kept.stream().filter(a -> a.isBaby()).count()).append(" young, ")
+						.append(Pens.strays(level, settlement, pen).size()).append(" loose) ");
 			}
 			VillagerCivMod.LOGGER.info("AUTOTEST   pens {}", pens.toString().trim());
+			{
+				java.util.Set<String> kept = new java.util.TreeSet<>();
+				int atLectern = 0;
+				for (Citizen c : settlement.members()) {
+					var e = Librarians.enchantmentOf(level, settlement, c);
+					if (e != null) {
+						kept.add(e.key().identifier().getPath());
+						atLectern += c.activity() == com.sunnatbek.villagerciv.sim.Activity.WORKING ? 1 : 0;
+					}
+				}
+				// Once, as soon as there is a librarian: its patron brings a book and emeralds.
+				if (!bookBought && !kept.isEmpty()) {
+					bookBought = true;
+					net.minecraft.server.level.ServerPlayer patron = server.getPlayerList().getPlayers().getFirst();
+					run(server, "gamemode survival @p");
+					run(server, "item replace entity @p weapon.mainhand with book");
+					run(server, "give @p emerald 128");
+					int before = 0;
+					for (int slot = 0; slot < patron.getInventory().getContainerSize(); slot++) {
+						before += patron.getInventory().getItem(slot).is(net.minecraft.world.item.Items.EMERALD) ? patron.getInventory().getItem(slot).getCount() : 0;
+					}
+					VillagerCivMod.LOGGER.info("AUTOTEST   patron has {} emeralds and holds {}", before, patron.getMainHandItem());
+					for (Citizen c : settlement.members()) {
+						if (Librarians.enchantmentOf(level, settlement, c) != null) {
+							Librarians.speak(patron, level, settlement, c, patron.getMainHandItem());
+							break;
+						}
+					}
+					int emeralds = 0;
+					String got = "nothing";
+					for (int slot = 0; slot < patron.getInventory().getContainerSize(); slot++) {
+						net.minecraft.world.item.ItemStack stack = patron.getInventory().getItem(slot);
+						emeralds += stack.is(net.minecraft.world.item.Items.EMERALD) ? stack.getCount() : 0;
+						if (stack.is(net.minecraft.world.item.Items.ENCHANTED_BOOK)) {
+							got = stack.getOrDefault(net.minecraft.core.component.DataComponents.STORED_ENCHANTMENTS,
+									net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY).toString();
+						}
+					}
+					VillagerCivMod.LOGGER.info("AUTOTEST   bought from a librarian: {} | emeralds left {} of 128", got, emeralds);
+					run(server, "gamemode spectator @p");
+				}
+				VillagerCivMod.LOGGER.info("AUTOTEST   libraries {} librarians {} at their lecterns {} | {} of {} enchantments kept {}", settlement.libraries().size(),
+						settlement.members().stream().filter(c -> c.job() == JobType.STUDY).count(), atLectern, kept.size(), Librarians.all(level).size(), kept);
+			}
 			int[] land = embodiment.landscaper().survey(level, settlement);
 			java.util.Map<Integer, Integer> houses = new java.util.TreeMap<>();
 			java.util.Map<Integer, Integer> walls = new java.util.TreeMap<>();

@@ -148,7 +148,7 @@ public final class WorkSites {
 			case LUMBER -> nextInSquare(level, site, claimed, offset, TREE_SPACING);
 			case MINE -> nextStep(level, site, claimed, offset);
 			// Building is not done at a work site; see BuildSites.
-			case BUILD, LEVEL, SMITH, MASON, TRADE, HERD -> null;
+			case BUILD, LEVEL, SMITH, MASON, TRADE, HERD, STUDY -> null;
 		};
 	}
 

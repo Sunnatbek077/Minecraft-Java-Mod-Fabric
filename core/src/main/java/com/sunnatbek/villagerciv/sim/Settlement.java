@@ -145,6 +145,13 @@ public final class Settlement implements SimRecord<SettlementId>, CitizenGroup {
 		return Collections.unmodifiableList(buildings);
 	}
 
+	/** A building that has been taken down is struck from the plan; whoever had a post on it is posted afresh. */
+	public void strike(Building building) {
+		if (buildings.remove(building)) {
+			dirty = true;
+		}
+	}
+
 	public Building building(int id) {
 		for (int i = 0; i < buildings.size(); i++) {
 			if (buildings.get(i).id() == id) {
@@ -197,16 +204,36 @@ public final class Settlement implements SimRecord<SettlementId>, CitizenGroup {
 		return null;
 	}
 
-	/** Everything being built right now: at most one ordinary building and one piece of wall. */
+	/** How many pieces of wall are being raised at once. */
+	public int activeWallPieces() {
+		int pieces = 0;
+		for (Building building : buildings) {
+			if (building.stage() == Building.Stage.UNDER_CONSTRUCTION && building.category() == Blueprint.Category.DEFENSE) {
+				pieces++;
+			}
+		}
+		return pieces;
+	}
+
+	/**
+	 * How many pieces of wall a settlement works on at once. A small place has one crew for its
+	 * wall; a town has two, and a city, whose wall is a great work, four.
+	 */
+	public int wallCrews() {
+		return stage.ordinal() >= SettlementStage.CITY.ordinal() ? 4 : stage.ordinal() >= SettlementStage.TOWN.ordinal() ? 2 : 1;
+	}
+
+	/** Everything being built right now: at most one ordinary building, and the pieces of wall its crews are on. */
 	public List<Building> activeBuildings() {
 		List<Building> active = new ArrayList<>(2);
 		Building civil = activeBuilding();
 		if (civil != null) {
 			active.add(civil);
 		}
-		Building wall = activeWallPiece();
-		if (wall != null) {
-			active.add(wall);
+		for (Building building : buildings) {
+			if (building.stage() == Building.Stage.UNDER_CONSTRUCTION && building.category() == Blueprint.Category.DEFENSE) {
+				active.add(building);
+			}
 		}
 		return active;
 	}
@@ -246,6 +273,81 @@ public final class Settlement implements SimRecord<SettlementId>, CitizenGroup {
 			}
 		}
 		return null;
+	}
+
+	/** How often the store is looked at for which way it is going, and how far ahead a falling stock is counted as a shortage. */
+	private static final long STOCK_WATCH_TICKS = 6_000;
+	private static final int RUNWAY_WATCHES = 8;
+	private static final int RESERVE_PER_HEAD = 4;
+	private static final int RESERVE_FOOD_DAYS = 3;
+	private final int[] stockSeen = new int[Commodity.values().length];
+	private final int[] stockDrain = new int[Commodity.values().length];
+	private long stockSeenTick = -1;
+
+	/** Notes what is in store, once in a while, so that a stock that is running down is seen before it is gone. */
+	public void watchStock(long gameTick) {
+		if (stockSeenTick >= 0 && gameTick - stockSeenTick < STOCK_WATCH_TICKS) {
+			return;
+		}
+		for (Commodity commodity : Commodity.values()) {
+			int now = ledger.onHand(commodity);
+			stockDrain[commodity.ordinal()] = stockSeenTick < 0 ? 0 : stockSeen[commodity.ordinal()] - now;
+			stockSeen[commodity.ordinal()] = now;
+		}
+		stockSeenTick = gameTick;
+	}
+
+	/**
+	 * How badly the settlement wants more of something brought in: 2 when it is all but out, 1
+	 * when it is low or is being used up so fast that two days would see the end of it, 0 when
+	 * there is no call to move anyone. Not saved.
+	 */
+	public int shortage(Commodity commodity) {
+		StockStatus now = status(commodity);
+		int stock = ledger.onHand(commodity);
+		// What a place of this size keeps by it as a matter of course: wood and stone for a few
+		// houses, food for some days. Below that it is short, whatever the day's needs say.
+		int reserve = commodity == Commodity.FOOD ? size() * RESERVE_FOOD_DAYS
+				: commodity == Commodity.WOOD || commodity == Commodity.STONE ? size() * RESERVE_PER_HEAD : 0;
+		if (now == StockStatus.CRITICAL || stock < reserve / 4) {
+			return 2;
+		}
+		int drain = stockDrain[commodity.ordinal()];
+		return now == StockStatus.LOW || stock < reserve || (drain > 0 && stock < (long) drain * RUNWAY_WATCHES) ? 1 : 0;
+	}
+
+	/** How many citizens are away from their usual work, making good a shortage. */
+	public int calledAway() {
+		int away = 0;
+		for (Citizen citizen : members.values()) {
+			away += citizen.isCalledAway() ? 1 : 0;
+		}
+		return away;
+	}
+
+	private int studies;
+
+	/**
+	 * How many enchantments there are to keep: one librarian is wanted for each. The game knows
+	 * that, not the simulation, so it is told by whoever can see the game; not saved.
+	 */
+	public int studies() {
+		return studies;
+	}
+
+	public void setStudies(int studies) {
+		this.studies = studies;
+	}
+
+	/** The libraries that stand finished, in the order they were built. */
+	public List<Building> libraries() {
+		List<Building> libraries = new ArrayList<>();
+		for (Building building : buildings) {
+			if (building.blueprint().equals(Blueprint.LIBRARY) && building.stage() == Building.Stage.COMPLETE) {
+				libraries.add(building);
+			}
+		}
+		return libraries;
 	}
 
 	/** The pens that stand finished, in the order they were built. */
@@ -302,10 +404,11 @@ public final class Settlement implements SimRecord<SettlementId>, CitizenGroup {
 	/** The main storehouse, or null while the settlement has none. */
 	private int storeSoughtAtStreets = -1;
 	private int expansion;
+	private com.sunnatbek.villagerciv.build.ShapedWall.Shape wallShape = com.sunnatbek.villagerciv.build.ShapedWall.Shape.SQUARE;
 	private final boolean[] siteWish = new boolean[JobType.values().length];
 	private boolean groundWork;
 	private boolean lampWork;
-	private final int[] workshopSoughtAtStreets = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+	private final int[] workshopSoughtAtStreets = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
 	private long declineSinceTick = NOT_ELIGIBLE;
 	private boolean outOfRoom;
 	private static final int WALL_INSET = 5;
@@ -475,7 +578,44 @@ public final class Settlement implements SimRecord<SettlementId>, CitizenGroup {
 	 * ground inside it: a settlement does not spill out past its own wall. Without a wall there
 	 * are no bounds.
 	 */
+	/** The outline of the wall the settlement was last given leave to grow out to; a square until it is given another. */
+	public com.sunnatbek.villagerciv.build.ShapedWall.Shape wallShape() {
+		return wallShape;
+	}
+
+	public void setWallShape(com.sunnatbek.villagerciv.build.ShapedWall.Shape wallShape) {
+		this.wallShape = wallShape;
+		dirty = true;
+	}
+
+	private com.sunnatbek.villagerciv.build.ShapedWall.Shape plannedShape;
+
+	/**
+	 * The outline chosen for the wall the settlement builds next, or null if none has been
+	 * chosen: a town that is already enlarged keeps a charter for another outline until it is a
+	 * city and gets its Grand Charter. Saved.
+	 */
+	public com.sunnatbek.villagerciv.build.ShapedWall.Shape plannedShape() {
+		return plannedShape;
+	}
+
+	public void setPlannedShape(com.sunnatbek.villagerciv.build.ShapedWall.Shape plannedShape) {
+		this.plannedShape = plannedShape;
+		dirty = true;
+	}
+
+	/** Whether the settlement's outermost wall is one worked out cell by cell: any that is not the plain square of a town's first stone ring. */
+	public boolean hasShapedWall() {
+		return expansion >= 2 || (expansion == 1 && wallShape != com.sunnatbek.villagerciv.build.ShapedWall.Shape.SQUARE);
+	}
+
 	public boolean withinWalls(int x, int z) {
+		if (hasShapedWall() && wallBounds() != null) {
+			// Inside the outline itself, a few steps in from the wall, not merely inside the square that holds it.
+			int thickness = expansion >= 2 ? com.sunnatbek.villagerciv.build.ShapedWall.Style.GREAT.thickness() : 1;
+			return com.sunnatbek.villagerciv.build.ShapedWall.inside(wallShape,
+					com.sunnatbek.villagerciv.build.ShapedWall.radius(expansion) - thickness - WALL_INSET + 1, x - anchorX, z - anchorZ);
+		}
 		int[] bounds = wallBounds();
 		return bounds == null || (x >= bounds[0] && x <= bounds[2] && z >= bounds[1] && z <= bounds[3]);
 	}
@@ -552,6 +692,14 @@ public final class Settlement implements SimRecord<SettlementId>, CitizenGroup {
 	public boolean mayExpand() {
 		return expansion == 0 && (stage.ordinal() >= SettlementStage.TOWN.ordinal()
 				|| (stage == SettlementStage.VILLAGE && outOfRoom));
+	}
+
+	/**
+	 * Whether the charter of a city would be taken: by a city that has been enlarged once and has
+	 * finished the wall that came with that. The third stage of a patron's plans.
+	 */
+	public boolean mayExpandAgain() {
+		return expansion == 1 && stage.ordinal() >= SettlementStage.CITY.ordinal() && wallPlan.isEmpty();
 	}
 
 	private int noRoomAt = -1;

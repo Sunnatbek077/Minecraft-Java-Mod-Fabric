@@ -26,6 +26,7 @@ public enum ToolKind {
 			case SMITH, MASON, TRADE -> null;
 			// Animals are led and fed by hand.
 			case HERD -> null;
+			case STUDY -> null;
 		};
 	}
 

@@ -5,6 +5,7 @@ import com.sunnatbek.villagerciv.scheduler.TaskPriority;
 import com.sunnatbek.villagerciv.scheduler.TaskResult;
 import com.sunnatbek.villagerciv.sim.Citizen;
 import com.sunnatbek.villagerciv.sim.Expedition;
+import com.sunnatbek.villagerciv.build.ShapedWall;
 import com.sunnatbek.villagerciv.sim.Founding;
 import com.sunnatbek.villagerciv.sim.Role;
 import com.sunnatbek.villagerciv.sim.Settlement;
@@ -132,41 +133,99 @@ final class FoundingHandler {
 	 */
 	void proposeExpansion(ServerPlayer player, Settlement settlement, ItemStack stack) {
 		String leader = leaderOf(settlement);
-		if (settlement.expansion() > 0) {
+		boolean grand = stack.is(ModContent.GRAND_CHARTER);
+		boolean byGrandCharter = grand;
+		if (!grand && settlement.expansion() == 1 && settlement.mayExpandAgain()) {
+			// A city with its wall finished is ready to grow again, and a charter that names an
+			// outline is leave enough: it grows on it now, into a great wall of that outline.
+			settlement.setPlannedShape(ModContent.shapeOf(stack));
+			grand = true;
+		}
+		if (!grand && settlement.expansion() == 1) {
+			// A town that is not ready to grow again keeps the charter for the day it is: the
+			// great wall it builds as a city will have the outline the charter names.
+			ShapedWall.Shape chosen = ModContent.shapeOf(stack);
+			String outline = "shape.villagerciv." + chosen.name().toLowerCase(java.util.Locale.ROOT);
+			if (chosen == settlement.plannedShape() || (settlement.plannedShape() == null && chosen == settlement.wallShape())) {
+				player.sendSystemMessage(Component.translatable("message.villagerciv.expand.shape_same", leader, Component.translatable(outline)), true);
+				return;
+			}
+			settlement.setPlannedShape(chosen);
+			stack.consume(1, player);
+			player.sendSystemMessage(Component.translatable("message.villagerciv.expand.shape_kept", leader, Component.translatable(outline)));
+			return;
+		}
+		if (grand ? settlement.expansion() >= 2 : settlement.expansion() > 0) {
 			player.sendSystemMessage(Component.translatable("message.villagerciv.expand.already", leader), true);
 			return;
 		}
-		if (!settlement.mayExpand()) {
-			player.sendSystemMessage(Component.translatable("message.villagerciv.expand.too_small", leader), true);
+		if (grand ? !settlement.mayExpandAgain() : !settlement.mayExpand()) {
+			player.sendSystemMessage(Component.translatable(grand ? "message.villagerciv.expand.not_a_city" : "message.villagerciv.expand.too_small", leader), true);
 			return;
 		}
 		if (!expanding.add(settlement.id())) {
 			player.sendSystemMessage(Component.translatable("message.villagerciv.expand.busy"), true);
 			return;
 		}
+		// The Grand Charter keeps the outline the town has, unless another was chosen for it.
+		ShapedWall.Shape shape = !grand ? ModContent.shapeOf(stack) : settlement.plannedShape() != null ? settlement.plannedShape() : settlement.wallShape();
+		boolean great = grand;
 		stack.consume(1, player);
 		player.sendSystemMessage(Component.translatable("message.villagerciv.expand.surveying", leader));
 		UUID playerId = player.getUUID();
-		expand(settlement, () -> {
+		expand(settlement, shape, () -> {
 			ServerPlayer online = server.getPlayerList().getPlayer(playerId);
 			if (online != null) {
-				online.sendSystemMessage(Component.translatable(
-						settlement.wallPieces() > 0 ? "message.villagerciv.expand.done" : "message.villagerciv.expand.done.open", leader));
+				online.sendSystemMessage(Component.translatable(settlement.wallPieces() == 0 ? "message.villagerciv.expand.done.open"
+						: great ? "message.villagerciv.expand.done.grand" : "message.villagerciv.expand.done", leader));
 			}
 		});
 	}
 
-	/** Surveys the wider land round a settlement and enlarges it; {@code then} runs on the server thread afterwards. */
+	/**
+	 * A town that was handed a charter before it was ready keeps it, and grows on it by itself
+	 * the day it is a city with its wall finished. Called now and then; does nothing otherwise.
+	 */
+	void growOnKeptCharter(Settlement settlement) {
+		if (settlement.plannedShape() == null || !settlement.mayExpandAgain() || expanding.contains(settlement.id())) {
+			return;
+		}
+		ShapedWall.Shape shape = settlement.plannedShape();
+		String leader = leaderOf(settlement);
+		UUID founder = settlement.founder();
+		expand(settlement, shape, () -> {
+			ServerPlayer online = server.getPlayerList().getPlayer(founder);
+			if (online != null) {
+				online.sendSystemMessage(Component.translatable("message.villagerciv.expand.done.grand", leader));
+			}
+		});
+	}
+
+	/** Surveys the wider land round a settlement and enlarges it, in a square; {@code then} runs on the server thread afterwards. */
 	void expand(Settlement settlement, Runnable then) {
+		expand(settlement, ShapedWall.Shape.SQUARE, then);
+	}
+
+	/** The same, with the outline the new wall is to have. */
+	void expand(Settlement settlement, ShapedWall.Shape shape, Runnable then) {
+		expanding.add(settlement.id());
 		ServerLevel level = server.overworld();
-		TerrainSnapshot snapshot = new TerrainSnapshot(settlement.anchorX(), settlement.anchorZ(), Founding.EXPANDED_RADIUS);
+		TerrainSnapshot snapshot = new TerrainSnapshot(settlement.anchorX(), settlement.anchorZ(), Founding.expandedRadius(settlement.expansion() + 1));
 		int[] next = {0};
 		simulation.scheduler().submit("expansion-survey", TaskPriority.SETTLEMENT_AI, context -> {
 			BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
 			while (next[0] < snapshot.columnCount()) {
 				int end = Math.min(next[0] + SNAPSHOT_BATCH, snapshot.columnCount());
 				for (; next[0] < end; next[0]++) {
-					copyColumn(level, snapshot, next[0], cursor);
+					int x = snapshot.blockX(next[0]);
+					int z = snapshot.blockZ(next[0]);
+					// Land that far out is seldom all loaded: what cannot be seen is taken as
+					// ground to build on, and looked over again when the settlement gets there.
+					if (!level.hasChunk(x >> 4, z >> 4)) {
+						snapshot.set(next[0], settlement.grade(), Surface.SOIL);
+					} else {
+						copyColumn(level, snapshot, next[0], cursor);
+					}
 				}
 				if (!context.hasBudget()) {
 					return TaskResult.CONTINUE;
@@ -176,7 +235,7 @@ final class FoundingHandler {
 				SiteSurvey.Result result = SiteSurvey.analyse(snapshot);
 				server.execute(() -> {
 					expanding.remove(settlement.id());
-					simulation.expand(settlement, result.plots());
+					simulation.expand(settlement, result.plots(), shape);
 					then.run();
 				});
 			});
@@ -196,7 +255,7 @@ final class FoundingHandler {
 		}
 		ServerLevel level = server.overworld();
 		TerrainSnapshot snapshot = new TerrainSnapshot(settlement.anchorX(), settlement.anchorZ(),
-				settlement.expansion() > 0 ? Founding.EXPANDED_RADIUS : Founding.SURVEY_RADIUS);
+				settlement.expansion() > 0 ? Founding.expandedRadius(settlement.expansion()) : Founding.SURVEY_RADIUS);
 		int[] next = {0};
 		simulation.scheduler().submit("land-resurvey", TaskPriority.BACKGROUND, context -> {
 			BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();

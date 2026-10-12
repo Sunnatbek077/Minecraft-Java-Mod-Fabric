@@ -1,0 +1,12 @@
+{
+	"type": "minecraft:crafting_shapeless",
+	"category": "misc",
+	"group": "villagerciv_round_charter",
+	"ingredients": [
+		"villagerciv:expansion_charter",
+		"minecraft:snowball"
+	],
+	"result": {
+		"id": "villagerciv:round_charter"
+	}
+}

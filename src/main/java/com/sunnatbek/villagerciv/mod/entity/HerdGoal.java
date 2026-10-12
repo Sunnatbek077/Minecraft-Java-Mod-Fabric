@@ -34,6 +34,9 @@ final class HerdGoal extends Goal {
 	/** A handful of feed over the fence every so often, and the pen seen to after so many of those. */
 	private static final int FEED_TICKS = 40;
 	private static final int FEEDS_PER_ROUND = 25;
+	private static final int LOOK_FOR_STRAYS_TICKS = 100;
+	private static final double CATCH_SQR = 2.5 * 2.5;
+	private static final int CHASE_TIMEOUT_TICKS = 400;
 
 	private final CitizenEntity entity;
 	private Building pen;
@@ -44,6 +47,9 @@ final class HerdGoal extends Goal {
 	private int timer;
 	private int feeds;
 	private int waitUntilTick;
+	private Animal stray;
+	private int chase;
+	private int lookForStraysIn;
 
 	HerdGoal(CitizenEntity entity) {
 		this.entity = entity;
@@ -101,6 +107,40 @@ final class HerdGoal extends Goal {
 		Citizen citizen = entity.citizen();
 		if (embodiment == null || settlement == null || pen == null || citizen.job() != JobType.HERD || !(entity.level() instanceof ServerLevel level)) {
 			finished = true;
+			return;
+		}
+		// First of all the herd is kept together: anything of its kind loose in the settlement is
+		// gone after, caught, and carried back. If the pen is full already, it goes to the store.
+		if (stray != null && !stray.isAlive()) {
+			stray = null;
+		}
+		if (stray == null && --lookForStraysIn <= 0) {
+			lookForStraysIn = LOOK_FOR_STRAYS_TICKS;
+			List<Animal> loose = Pens.strays(level, settlement, pen);
+			for (Animal animal : loose) {
+				if (stray == null || animal.distanceToSqr(entity) < stray.distanceToSqr(entity)) {
+					stray = animal;
+				}
+			}
+			chase = 0;
+		}
+		if (stray != null) {
+			citizen.setActivity(Activity.WALKING);
+			if (entity.distanceToSqr(stray) <= CATCH_SQR || ++chase > CHASE_TIMEOUT_TICKS) {
+				entity.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT);
+				if (Pens.isFull(level, pen) && !stray.isBaby()) {
+					Pens.take(level, stray);
+					embodiment.deposit(level, settlement, Pens.yieldOf(pen.blueprint()));
+				} else {
+					Pens.bringIn(level, pen, stray);
+				}
+				Labor.reportProgress(citizen, embodiment.gameTick());
+				stray = null;
+				lookForStraysIn = 0;
+			} else if (--repathIn <= 0 && embodiment.takePathSlot()) {
+				repathIn = REPATH_INTERVAL_TICKS;
+				entity.getNavigation().moveTo(stray, 0.75);
+			}
 			return;
 		}
 		if (entity.distanceToSqr(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5) > NEAR_SQR) {

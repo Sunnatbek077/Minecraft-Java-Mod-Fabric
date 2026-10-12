@@ -339,7 +339,12 @@ public final class Landscaper {
 		for (Building building : settlement.buildings()) {
 			// A lot nobody has started on yet is ground like any other, and is levelled the sooner.
 			if (building.y() != Building.Y_UNKNOWN && building.contains(x, z)) {
-				return true;
+				// Of a tile of shaped wall only the wall itself: the ground beside it in the same
+				// square is levelled like the rest.
+				if (!com.sunnatbek.villagerciv.build.ShapedWall.isTile(building.blueprint())
+						|| com.sunnatbek.villagerciv.build.ShapedWall.isWallCell(building.blueprint(), x - building.x(), z - building.z())) {
+					return true;
+				}
 			}
 		}
 		for (WorkSite site : settlement.sites()) {

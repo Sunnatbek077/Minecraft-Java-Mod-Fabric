@@ -10,6 +10,11 @@ public final class Founding {
 	/** How far the survey and the claim of an enlarged settlement reach. */
 	public static final int EXPANDED_RADIUS = 96;
 
+	/** How far from its Town Center a settlement's land reaches once it has been enlarged so many times: twice as far the second time. */
+	public static int expandedRadius(int expansion) {
+		return EXPANDED_RADIUS * Math.max(1, expansion);
+	}
+
 	private static final String[] FIRST = {
 			"Alder", "Ash", "Birch", "Bram", "Clear", "Elm", "Fern", "Glen", "Green", "Hazel",
 			"High", "Mill", "Moss", "Oak", "Red", "River", "Stone", "Thorn", "West", "Willow"

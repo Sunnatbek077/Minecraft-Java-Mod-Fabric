@@ -48,6 +48,9 @@ public final class BlueprintLibrary {
 			blueprint = generated.get(id);
 			if (blueprint == null) {
 				blueprint = WallDesigns.forId(id);
+				if (blueprint == null) {
+					blueprint = ShapedWall.forId(id);
+				}
 				if (blueprint != null) {
 					generated.put(id, blueprint);
 				}

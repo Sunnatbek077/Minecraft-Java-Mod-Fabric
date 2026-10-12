@@ -301,18 +301,36 @@ public final class Simulation {
 	 * @return false if it had been enlarged already
 	 */
 	public boolean expand(Settlement settlement, Settlement.PlotMap widerPlots) {
-		if (settlement.expansion() > 0) {
+		return expand(settlement, widerPlots, com.sunnatbek.villagerciv.build.ShapedWall.Shape.SQUARE);
+	}
+
+	/**
+	 * The same, with the outline the new wall is to have. A settlement can be enlarged twice. The
+	 * first time it is a town growing beyond its first wall, into a ring of stone. The second
+	 * time it is a city: its land reaches twice as far again, and round it goes a great wall,
+	 * four blocks thick, with a walk along the top. Each time, the wall inside the new one is
+	 * taken down once the new one stands.
+	 *
+	 * @return false if it cannot be enlarged (again)
+	 */
+	public boolean expand(Settlement settlement, Settlement.PlotMap widerPlots, com.sunnatbek.villagerciv.build.ShapedWall.Shape shape) {
+		// A second time only for a city whose first enlargement is walled in.
+		if (settlement.expansion() >= 2 || (settlement.expansion() == 1 && !settlement.mayExpandAgain())) {
 			return false;
 		}
-		settlement.setExpansion(1);
+		int stage = settlement.expansion() + 1;
+		settlement.setExpansion(stage);
+		settlement.setWallShape(shape);
+		settlement.setPlannedShape(null);
 		settlement.setSurvey(settlement.siteScore(), widerPlots);
-		int reach = (Founding.EXPANDED_RADIUS >> 4) + 1;
+		int radius = Founding.expandedRadius(stage);
+		int reach = (radius >> 4) + 1;
 		for (int cx = (settlement.anchorX() >> 4) - reach; cx <= (settlement.anchorX() >> 4) + reach; cx++) {
 			for (int cz = (settlement.anchorZ() >> 4) - reach; cz <= (settlement.anchorZ() >> 4) + reach; cz++) {
 				double dx = (cx << 4) + 8 - settlement.anchorX();
 				double dz = (cz << 4) + 8 - settlement.anchorZ();
 				long chunk = ChunkKey.of(cx, cz);
-				if (Math.max(Math.abs(dx), Math.abs(dz)) <= Founding.EXPANDED_RADIUS && state.territoryOwner(chunk).isEmpty()) {
+				if (Math.max(Math.abs(dx), Math.abs(dz)) <= radius && state.territoryOwner(chunk).isEmpty()) {
 					settlement.claim(chunk);
 				}
 			}
@@ -320,7 +338,11 @@ public final class Simulation {
 		state.territoryChanged();
 		if (settlement.wallPieces() > 0 || settlement.hasPlan(Policy.MILITARY)) {
 			List<com.sunnatbek.villagerciv.build.WallPiece> pieces = new ArrayList<>(settlement.wallPlan());
-			List<com.sunnatbek.villagerciv.build.WallPiece> outer = com.sunnatbek.villagerciv.build.Fortification.planOuter(settlement, blueprints);
+			List<com.sunnatbek.villagerciv.build.WallPiece> outer = settlement.hasShapedWall()
+					? com.sunnatbek.villagerciv.build.ShapedWall.plan(settlement.anchorX(), settlement.anchorZ(), shape,
+							com.sunnatbek.villagerciv.build.ShapedWall.radius(stage),
+							stage >= 2 ? com.sunnatbek.villagerciv.build.ShapedWall.Style.GREAT : com.sunnatbek.villagerciv.build.ShapedWall.Style.RAMPART)
+					: com.sunnatbek.villagerciv.build.Fortification.planOuter(settlement, blueprints);
 			pieces.addAll(outer);
 			settlement.setWallPlan(pieces, settlement.wallPieces() + outer.size());
 		}

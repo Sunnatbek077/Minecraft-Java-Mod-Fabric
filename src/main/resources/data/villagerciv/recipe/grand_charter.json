@@ -1,0 +1,14 @@
+{
+	"type": "minecraft:crafting_shapeless",
+	"category": "misc",
+	"group": "villagerciv_grand_charter",
+	"ingredients": [
+		"villagerciv:blank_plan",
+		"villagerciv:surveyors_seal",
+		"villagerciv:surveyors_seal",
+		"minecraft:diamond_block"
+	],
+	"result": {
+		"id": "villagerciv:grand_charter"
+	}
+}

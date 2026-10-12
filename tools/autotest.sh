@@ -26,5 +26,5 @@ maxFps:30
 overrideWidth:640
 overrideHeight:400
 OPTIONS
-./gradlew runAutotest -PautotestTicks="$TICKS" -PautotestShowcase="${SHOWCASE:-false}" -PautotestExpand="${EXPAND:-false}" -q > run-autotest/gradle.out 2>&1 || true
+./gradlew runAutotest -PautotestTicks="$TICKS" -PautotestShowcase="${SHOWCASE:-false}" -PautotestExpand="${EXPAND:-false}" -PautotestShortage="${SHORTAGE:-false}" -PautotestRoam="${ROAM:-false}" -q > run-autotest/gradle.out 2>&1 || true
 grep "AUTOTEST" run-autotest/logs/latest.log | sed 's/^.*(villagerciv) //'

@@ -36,6 +36,28 @@ public final class ModContent {
 	public static final Item MILITARY_PLAN = plan("military_plan", Policy.MILITARY);
 	/** A town's leave to grow beyond its first wall: the second stage of a patron's plans for it. */
 	public static final Item EXPANSION_CHARTER = item("expansion_charter", 1);
+	/** The same leave, with the outline the new wall is to have: five, six or eight sides, or round. */
+	public static final Item PENTAGON_CHARTER = item("pentagon_charter", 1);
+	public static final Item HEXAGON_CHARTER = item("hexagon_charter", 1);
+	public static final Item OCTAGON_CHARTER = item("octagon_charter", 1);
+	public static final Item ROUND_CHARTER = item("round_charter", 1);
+	/** A city's leave to grow twice as far again, behind a great wall: the third stage of a patron's plans for it. */
+	public static final Item GRAND_CHARTER = item("grand_charter", 1);
+
+	/** Whether an item is one of the charters that enlarge a settlement. */
+	public static boolean isCharter(ItemStack stack) {
+		return stack.is(EXPANSION_CHARTER) || stack.is(PENTAGON_CHARTER) || stack.is(HEXAGON_CHARTER) || stack.is(OCTAGON_CHARTER)
+				|| stack.is(ROUND_CHARTER) || stack.is(GRAND_CHARTER);
+	}
+
+	/** The outline a charter gives the new wall; null for the Grand Charter, which keeps the outline the town has. */
+	public static com.sunnatbek.villagerciv.build.ShapedWall.Shape shapeOf(ItemStack stack) {
+		return stack.is(PENTAGON_CHARTER) ? com.sunnatbek.villagerciv.build.ShapedWall.Shape.PENTAGON
+				: stack.is(HEXAGON_CHARTER) ? com.sunnatbek.villagerciv.build.ShapedWall.Shape.HEXAGON
+				: stack.is(OCTAGON_CHARTER) ? com.sunnatbek.villagerciv.build.ShapedWall.Shape.OCTAGON
+				: stack.is(ROUND_CHARTER) ? com.sunnatbek.villagerciv.build.ShapedWall.Shape.ROUND
+				: stack.is(GRAND_CHARTER) ? null : com.sunnatbek.villagerciv.build.ShapedWall.Shape.SQUARE;
+	}
 	/** The mark that makes a blank plan into an Expansion Charter. It has no use of its own. */
 	public static final Item SURVEYORS_SEAL = item("surveyors_seal", 16);
 
@@ -111,6 +133,11 @@ public final class ModContent {
 							output.accept(MILITARY_PLAN);
 							output.accept(SURVEYORS_SEAL);
 							output.accept(EXPANSION_CHARTER);
+							output.accept(PENTAGON_CHARTER);
+							output.accept(HEXAGON_CHARTER);
+							output.accept(OCTAGON_CHARTER);
+							output.accept(ROUND_CHARTER);
+							output.accept(GRAND_CHARTER);
 						})
 						.build());
 	}

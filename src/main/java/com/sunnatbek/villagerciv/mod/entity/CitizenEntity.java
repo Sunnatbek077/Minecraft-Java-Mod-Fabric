@@ -61,7 +61,7 @@ public class CitizenEntity extends PathfinderMob {
 	private static final double DEFEND_RADIUS = 10.0;
 	private static final double SETTLEMENT_DEFEND_RADIUS = 14.0;
 	private static final double GUARD_LEASH = 20.0;
-	private static final double SETTLEMENT_LEASH = 30.0;
+	private static final double SETTLEMENT_LEASH = 12.0;
 	private static final float RETREAT_HEALTH = 8.0f;
 	/** Padded jackets for whoever stands guard, mail for those the store can also give a sword. */
 	private static final double GUARD_ARMOR = 8.0;
@@ -100,12 +100,12 @@ public class CitizenEntity extends PathfinderMob {
 		goalSelector.addGoal(1, new MeleeAttackGoal(this, 0.9, true) {
 			@Override
 			public boolean canUse() {
-				return fights() && !posted() && super.canUse();
+				return fights() && !posted() && !archer() && super.canUse();
 			}
 
 			@Override
 			public boolean canContinueToUse() {
-				return fights() && !posted() && super.canContinueToUse();
+				return fights() && !posted() && !archer() && super.canContinueToUse();
 			}
 		});
 		goalSelector.addGoal(1, new PanicGoal(this, 0.9) {
@@ -122,6 +122,7 @@ public class CitizenEntity extends PathfinderMob {
 		});
 		// A guard with a tower to man goes there before anything else, and stays.
 		goalSelector.addGoal(2, new TowerPostGoal(this));
+		goalSelector.addGoal(2, new PatrolGoal(this));
 		goalSelector.addGoal(2, new FollowExpeditionGoal(this));
 		goalSelector.addGoal(1, new OpenDoorGoal(this, true));
 		// Before going home for the night: of two goals of one rank, the first listed starts first.
@@ -133,6 +134,7 @@ public class CitizenEntity extends PathfinderMob {
 		goalSelector.addGoal(3, new LampGoal(this, true));
 		goalSelector.addGoal(3, new WorkshopGoal(this));
 		goalSelector.addGoal(3, new HerdGoal(this));
+		goalSelector.addGoal(3, new StudyGoal(this));
 		goalSelector.addGoal(3, new LandscapeGoal(this, true));
 		goalSelector.addGoal(4, new LandscapeGoal(this, false));
 		goalSelector.addGoal(4, new LampGoal(this, false));
@@ -172,6 +174,11 @@ public class CitizenEntity extends PathfinderMob {
 		return citizen != null && citizen.post() != Citizen.NO_POST;
 	}
 
+	/** A guard who patrols with a crossbow: it keeps its distance and shoots, where a sword closes in. */
+	private boolean archer() {
+		return citizen != null && citizen.patrol() == Citizen.Patrol.CROSSBOW;
+	}
+
 	/** Bundles of ore and the like picked up at work, on the way to the citizen's chest. Not kept across a restart. */
 	public java.util.List<ItemStack> pack() {
 		return pack;
@@ -188,7 +195,8 @@ public class CitizenEntity extends PathfinderMob {
 	 * fight to the death.
 	 */
 	private boolean fights() {
-		return isDefender() && getHealth() > RETREAT_HEALTH;
+		// A guard on patrol does not fall back: seeing a monster off is what it is there for.
+		return isDefender() && (getHealth() > RETREAT_HEALTH || (citizen != null && citizen.patrol() != Citizen.Patrol.NONE));
 	}
 
 	/**
@@ -198,7 +206,11 @@ public class CitizenEntity extends PathfinderMob {
 	private boolean isNearPlayer() {
 		Settlement settlement = settlement();
 		if (settlement != null) {
-			return distanceToSqr(settlement.anchorX() + 0.5, settlement.anchorY(), settlement.anchorZ() + 0.5) < SETTLEMENT_LEASH * SETTLEMENT_LEASH;
+			// Anywhere on the settlement's own ground, however far that has spread from its Town
+			// Center, and a little way out from it.
+			int[] bounds = settlement.groundBounds();
+			return (getX() >= bounds[0] - SETTLEMENT_LEASH && getX() <= bounds[2] + SETTLEMENT_LEASH
+					&& getZ() >= bounds[1] - SETTLEMENT_LEASH && getZ() <= bounds[3] + SETTLEMENT_LEASH);
 		}
 		ServerPlayer player = followTarget();
 		return player == null || distanceToSqr(player) < GUARD_LEASH * GUARD_LEASH;
@@ -320,7 +332,7 @@ public class CitizenEntity extends PathfinderMob {
 		// A settlement that set its mind on defence trains its General harder.
 		double drill = settlement != null && settlement.hasPlan(Policy.MILITARY) ? MILITARY_DAMAGE_BONUS : 0.0;
 		// The sword is in its hand for all to see, and the blade itself adds its edge to the blow.
-		boolean sword = armed && isDefender() && !posted();
+		boolean sword = armed && isDefender() && !posted() && !archer();
 		getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue((armed ? SWORD_DAMAGE - (sword ? IRON_SWORD_EDGE : 0.0) : UNARMED_DAMAGE) + drill);
 		// Defenders are protected as well as armed; a civilian's best defence stays a closed door.
 		// One who wears a suit of iron is protected by the suit itself; the figures here stand in for it until then.
@@ -332,7 +344,16 @@ public class CitizenEntity extends PathfinderMob {
 		wear(EquipmentSlot.CHEST, citizen.isArmored() ? Items.IRON_CHESTPLATE : null);
 		wear(EquipmentSlot.LEGS, citizen.isArmored() ? Items.IRON_LEGGINGS : null);
 		wear(EquipmentSlot.FEET, citizen.isArmored() ? Items.IRON_BOOTS : null);
-		wear(EquipmentSlot.MAINHAND, posted() ? Items.CROSSBOW : sword ? Items.IRON_SWORD : toolInHand(settlement));
+		// A librarian is known by what it keeps: its enchantment stands beside its name.
+		net.minecraft.core.Holder.Reference<net.minecraft.world.item.enchantment.Enchantment> kept =
+				settlement != null && level() instanceof net.minecraft.server.level.ServerLevel serverLevel
+						? com.sunnatbek.villagerciv.mod.Librarians.enchantmentOf(serverLevel, settlement, citizen) : null;
+		Component shown = kept == null ? Component.literal(citizen.name())
+				: Component.literal(citizen.name() + " · ").append(kept.value().description());
+		if (!shown.equals(getCustomName())) {
+			setCustomName(shown);
+		}
+		wear(EquipmentSlot.MAINHAND, posted() || archer() ? Items.CROSSBOW : sword ? Items.IRON_SWORD : toolInHand(settlement));
 	}
 
 	/** The tool of a worker's trade, if the settlement's store has one for it; shown in its hand. */
@@ -353,6 +374,9 @@ public class CitizenEntity extends PathfinderMob {
 			}
 			case HERD -> {
 				return Items.WHEAT;
+			}
+			case STUDY -> {
+				return Items.BOOK;
 			}
 			default -> {
 			}
@@ -437,6 +461,14 @@ public class CitizenEntity extends PathfinderMob {
 			embodiment.proposePlan(serverPlayer, settlement, stack, plan);
 			return InteractionResult.SUCCESS;
 		}
+		if (citizen.job() == com.sunnatbek.villagerciv.sim.JobType.STUDY && group instanceof Settlement settlement
+				&& level() instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+			// A librarian is spoken to about its enchantment; the settlement's own screen is at the Town Center.
+			if (hand == InteractionHand.MAIN_HAND) {
+				com.sunnatbek.villagerciv.mod.Librarians.speak(serverPlayer, serverLevel, settlement, citizen, stack);
+			}
+			return InteractionResult.SUCCESS;
+		}
 		FoodProperties food = stack.get(DataComponents.FOOD);
 		if (ownPlayer && food != null) {
 			// Sneaking hands over the whole stack.
@@ -487,17 +519,45 @@ public class CitizenEntity extends PathfinderMob {
 
 	// No entity-to-entity pushing: in a crowded town it is pure cost.
 
+	/**
+	 * Citizens make room for one another, so that a dozen of them heading for the same spot end
+	 * up standing round it and not inside each other. Only one who is on the move or standing
+	 * about gives way: nobody is shouldered off a tower, out of bed, or away from the bench, the
+	 * wall or the field it is working at.
+	 */
 	@Override
 	public boolean isPushable() {
-		return false;
+		if (citizen == null || posted() || isSleeping()) {
+			return false;
+		}
+		Activity activity = citizen.activity();
+		return activity != Activity.WORKING && activity != Activity.BUILDING && activity != Activity.SLEEPING && activity != Activity.AT_WORK;
+	}
+
+	/**
+	 * A crowd never crushes a citizen. The game hurts a creature that stands in a press of too
+	 * many others; citizens are often set down in one spot together (newcomers by the Town
+	 * Center, a crew called back from a far wall), and making room for one another must not turn
+	 * into dying of it.
+	 */
+	@Override
+	public boolean isInvulnerableTo(net.minecraft.server.level.ServerLevel level, DamageSource source) {
+		return source.is(net.minecraft.world.damagesource.DamageTypes.CRAMMING) || super.isInvulnerableTo(level, source);
+	}
+
+	/** And only one another: animals, monsters and players do not push a citizen about, as they never did. */
+	@Override
+	public void push(Entity other) {
+		if (other instanceof CitizenEntity) {
+			super.push(other);
+		}
 	}
 
 	@Override
-	protected void doPush(Entity entity) {
-	}
-
-	@Override
-	protected void pushEntities() {
+	protected void doPush(Entity other) {
+		if (other instanceof CitizenEntity) {
+			super.doPush(other);
+		}
 	}
 
 	@Override

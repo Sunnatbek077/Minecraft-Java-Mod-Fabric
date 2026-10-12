@@ -291,6 +291,31 @@ public final class BuildSites {
 				cellPos(workshop, blueprint, bench.x(), bench.y(), Math.min(blueprint.depth() - 1, bench.z() + 1))};
 	}
 
+	/**
+	 * The lecterns of a library, in the order they stand in its design: for each, the lectern
+	 * itself and the floor in front of it, where its librarian stands. Empty if the library is
+	 * not standing in loaded ground.
+	 */
+	public List<BlockPos[]> lecterns(ServerLevel level, Settlement settlement, Building library) {
+		Blueprint blueprint = library.y() == Building.Y_UNKNOWN || library.stage() != Building.Stage.COMPLETE || !isLoaded(level, library)
+				? null : this.library.get(library.blueprint()).orElse(null);
+		List<BlockPos[]> lecterns = new java.util.ArrayList<>();
+		if (blueprint == null) {
+			return lecterns;
+		}
+		for (int y = 0; y < blueprint.height(); y++) {
+			for (int z = 0; z < blueprint.depth() - 1; z++) {
+				for (int x = 0; x < blueprint.width(); x++) {
+					char cell = blueprint.cell(x, y, z);
+					if (cell != Blueprint.LEAVE && cell != Blueprint.CLEAR && blueprint.palette().get(cell).startsWith("minecraft:lectern")) {
+						lecterns.add(new BlockPos[] {cellPos(library, blueprint, x, y, z), cellPos(library, blueprint, x, y, z + 1)});
+					}
+				}
+			}
+		}
+		return lecterns;
+	}
+
 	private static BlockPos cellPos(Building building, Blueprint blueprint, int x, int y, int z) {
 		return new BlockPos(building.x() + ConstructionPlan.rotatedX(blueprint, building.rotation(), x, z), building.y() + y,
 				building.z() + ConstructionPlan.rotatedZ(blueprint, building.rotation(), x, z));
@@ -405,6 +430,45 @@ public final class BuildSites {
 		building.setStage(Building.Stage.UNDER_REPAIR);
 	}
 
+	/**
+	 * Takes a condemned building down: every block of its own is removed, and half its timber
+	 * and stone goes back into the store. The ground is left for the levellers.
+	 *
+	 * @return whether it is gone (false: its ground is not loaded yet, try again later)
+	 */
+	boolean demolish(ServerLevel level, Settlement settlement, Building building) {
+		if (building.y() == Building.Y_UNKNOWN) {
+			return true; // never begun: there is nothing standing
+		}
+		Plan plan = plan(settlement, building);
+		if (plan == null) {
+			return true;
+		}
+		if (!isLoaded(level, building)) {
+			return false;
+		}
+		for (ConstructionPlan.Step step : plan.steps()) {
+			if (step.kind() == ConstructionPlan.Kind.PLACE) {
+				BlockPos pos = new BlockPos(step.x(), building.y() + step.dy(), step.z());
+				if (plan.ownBlocks().contains(level.getBlockState(pos).getBlock())) {
+					level.removeBlockEntity(pos);
+					level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+				}
+			}
+		}
+		library.get(building.blueprint()).ifPresent(design -> {
+			for (com.sunnatbek.villagerciv.sim.Commodity material : List.of(com.sunnatbek.villagerciv.sim.Commodity.WOOD, com.sunnatbek.villagerciv.sim.Commodity.STONE)) {
+				// A palisade has no stone in it, and the books take no entry of nothing.
+				if (design.cost(material) / 2 > 0) {
+					settlement.ledger().add(material, design.cost(material) / 2);
+				}
+			}
+		});
+		plans.remove(building);
+		wallsLookedAt.remove(building);
+		return true;
+	}
+
 	/** A street follows the land: each cell becomes path where it lies. */
 	private static Outcome pave(ServerLevel level, ConstructionPlan.Step step) {
 		if (!level.hasChunk(step.x() >> 4, step.z() >> 4)) {
@@ -504,7 +568,8 @@ public final class BuildSites {
 	 */
 	void repair(Settlement settlement, Building building) {
 		Plan plan = plan(settlement, building);
-		if (plan == null || building.stage() == Building.Stage.UNDER_CONSTRUCTION || building.stage() == Building.Stage.PLANNED) {
+		if (plan == null || building.stage() == Building.Stage.UNDER_CONSTRUCTION || building.stage() == Building.Stage.PLANNED
+				|| building.stage() == Building.Stage.CONDEMNED) {
 			return;
 		}
 		// From the first block, not from the start: the ground was levelled long ago, and

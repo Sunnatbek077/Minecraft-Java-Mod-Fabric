@@ -37,6 +37,11 @@ public final class CommodityValues {
 		if (stack.is(Items.HAY_BLOCK)) {
 			return new Value(Commodity.FOOD, 1);
 		}
+		// What the herds give besides meat: hides, fleeces, feathers. Kept with the food, as
+		// farm produce, and like straw worth a little of it.
+		if (stack.is(Items.LEATHER) || stack.is(Items.FEATHER) || stack.typeHolder().is(ItemTags.WOOL)) {
+			return new Value(Commodity.FOOD, 1);
+		}
 		// Eggs are eaten, though not as they are laid.
 		if (stack.is(Items.EGG)) {
 			return new Value(Commodity.FOOD, 1);

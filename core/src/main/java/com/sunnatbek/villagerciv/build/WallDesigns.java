@@ -31,7 +31,8 @@ public final class WallDesigns {
 
 	/** Whether a design is a plain stretch of wall of either kind, as opposed to a gate or a tower. */
 	public static boolean isRun(String id) {
-		return (id.startsWith(PALISADE_PREFIX) || id.startsWith(RAMPART_PREFIX)) && Character.isDigit(id.charAt(id.length() - 1));
+		return ShapedWall.isTile(id)
+				|| ((id.startsWith(PALISADE_PREFIX) || id.startsWith(RAMPART_PREFIX)) && Character.isDigit(id.charAt(id.length() - 1)));
 	}
 
 	/** Id of the palisade design of a given length. */

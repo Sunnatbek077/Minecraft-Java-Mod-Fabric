@@ -38,7 +38,7 @@ final class TownCenterBlock extends Block {
 			}
 			return InteractionResult.SUCCESS;
 		}
-		if (stack.is(ModContent.EXPANSION_CHARTER)) {
+		if (ModContent.isCharter(stack)) {
 			if (player instanceof ServerPlayer serverPlayer) {
 				EmbodimentController embodiment = VillagerCivMod.embodiment();
 				Settlement settlement = embodiment == null ? null : embodiment.settlementAt(pos);

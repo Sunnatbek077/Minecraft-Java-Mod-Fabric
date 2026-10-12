@@ -14,12 +14,11 @@
 		"E": "minecraft:spruce_planks",
 		"F": "minecraft:birch_planks",
 		"G": "minecraft:hay_block",
-		"H": "minecraft:spruce_stairs[facing=north,half=bottom]",
-		"I": "minecraft:oak_fence_gate[facing=south]",
-		"J": "minecraft:water_cauldron[level=3]",
-		"K": "minecraft:composter",
-		"L": "minecraft:dark_oak_slab[type=bottom]",
-		"M": "minecraft:dark_oak_slab[type=top]"
+		"H": "minecraft:water_cauldron[level=3]",
+		"I": "minecraft:spruce_trapdoor[facing=south,half=bottom,open=true]",
+		"J": "minecraft:oak_fence_gate[facing=south]",
+		"K": "minecraft:dark_oak_slab[type=bottom]",
+		"L": "minecraft:dark_oak_slab[type=top]"
 	},
 	"layers": [
 		[
@@ -39,19 +38,19 @@
 			"D.....D",
 			"DD...DD",
 			"D.....D",
-			"D..H.JD",
 			"D.....D",
-			"DG...KD",
-			"BDDIDDB"
+			"D.H.G.D",
+			"D.....D",
+			"BDDJDDB"
 		],
 		[
 			"B.....B",
 			".EEEEE.",
 			".EEEEE.",
 			".EEEEE.",
-			"...H...",
 			".......",
 			".......",
+			"....G..",
 			".......",
 			"B.....B"
 		],
@@ -59,7 +58,7 @@
 			"C     C",
 			" FFFFF ",
 			" FGGGF ",
-			" FF.FF ",
+			" FFIFF ",
 			" ..... ",
 			" ..... ",
 			" ..... ",
@@ -67,11 +66,11 @@
 			"C     C"
 		],
 		[
+			"KKKKKKK",
 			"LLLLLLL",
-			"MMMMMMM",
 			"       ",
-			"MMMMMMM",
 			"LLLLLLL",
+			"KKKKKKK",
 			"       ",
 			"       ",
 			"       ",
@@ -80,7 +79,7 @@
 		[
 			"       ",
 			"       ",
-			"LLLLLLL",
+			"KKKKKKK",
 			"       ",
 			"       ",
 			"       ",

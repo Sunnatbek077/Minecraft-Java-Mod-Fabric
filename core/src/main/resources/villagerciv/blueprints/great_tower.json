@@ -1,0 +1,150 @@
+{
+	"id": "great_tower",
+	"name": "Great Tower",
+	"category": "defense",
+	"beds": 0,
+	"min_stage": 2,
+	"cost": {"wood": 30, "stone": 520},
+	"late": "CGK",
+	"palette": {
+		"A": "minecraft:polished_deepslate",
+		"B": "minecraft:deepslate_bricks",
+		"C": "minecraft:ladder[facing=north]",
+		"D": "minecraft:stone_bricks",
+		"E": "minecraft:mossy_stone_bricks",
+		"F": "minecraft:iron_bars",
+		"G": "minecraft:lantern[hanging=true]",
+		"H": "minecraft:chiseled_stone_bricks",
+		"I": "minecraft:smooth_stone",
+		"J": "minecraft:polished_andesite",
+		"K": "minecraft:lantern[hanging=false]"
+	},
+	"layers": [
+		[
+			"AAAAAAA",
+			"AAAAAAA",
+			"AAAAAAA",
+			"AAAAAAA",
+			"AAAAAAA",
+			"AAAAAAA",
+			"AAAAAAA"
+		],
+		[
+			"BAAAAAB",
+			"A.....A",
+			"A.....A",
+			"A.....A",
+			"A.....A",
+			"AC....A",
+			"BAAAAAB"
+		],
+		[
+			"BDDDDDB",
+			"D.....D",
+			"D.....D",
+			"D.....D",
+			"D.....D",
+			"EC....E",
+			"BDDDDDB"
+		],
+		[
+			"BDEFDEB",
+			"D.....D",
+			"D.....D",
+			"F.....F",
+			"D.....D",
+			"DC....D",
+			"BEDFEDB"
+		],
+		[
+			"BDDFDDB",
+			"E.....E",
+			"D.....D",
+			"F.....F",
+			"D.....D",
+			"DC....D",
+			"BDDFDDB"
+		],
+		[
+			"BDDDDDB",
+			"D.....D",
+			"D.....D",
+			"D..G..D",
+			"D.....D",
+			"DC....D",
+			"BDDDDDB"
+		],
+		[
+			"BHHHHHB",
+			"HIIIIIH",
+			"HIIIIIH",
+			"HIIIIIH",
+			"HIIIIIH",
+			"HCIIIIH",
+			"BHHHHHB"
+		],
+		[
+			"BD...DB",
+			"D.....D",
+			".......",
+			".......",
+			".......",
+			"DC....D",
+			"BD...DB"
+		],
+		[
+			"BD...DB",
+			"D.....D",
+			".......",
+			".......",
+			".......",
+			"DC....D",
+			"BD...DB"
+		],
+		[
+			"BDDEDDB",
+			"D.....D",
+			"D.....D",
+			"D..G..D",
+			"D.....D",
+			"DC....D",
+			"BDEDDEB"
+		],
+		[
+			"BHHHHHB",
+			"HJJJJJH",
+			"HJJJJJH",
+			"HJJJJJH",
+			"HJJJJJH",
+			"HCJJJJH",
+			"BHHHHHB"
+		],
+		[
+			"BDDDDDB",
+			"D.....D",
+			"D.....D",
+			"D.....D",
+			"D.....D",
+			"D.....D",
+			"BDDDDDB"
+		],
+		[
+			"B D D B",
+			" ..... ",
+			"D.....D",
+			" ..... ",
+			"D.....D",
+			" ..... ",
+			"B D D B"
+		],
+		[
+			"K     K",
+			"       ",
+			"       ",
+			"       ",
+			"       ",
+			"       ",
+			"K     K"
+		]
+	]
+}

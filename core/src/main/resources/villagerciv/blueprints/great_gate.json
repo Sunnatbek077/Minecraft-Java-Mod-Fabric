@@ -1,0 +1,149 @@
+{
+	"id": "great_gate",
+	"name": "Great Gate",
+	"category": "defense",
+	"beds": 0,
+	"min_stage": 2,
+	"cost": {"wood": 60, "stone": 900},
+	"late": "JKLNOP",
+	"palette": {
+		"A": "minecraft:polished_deepslate",
+		"B": "minecraft:stone_bricks",
+		"C": "minecraft:deepslate_tiles",
+		"D": "minecraft:stone_brick_wall",
+		"E": "minecraft:cobbled_deepslate",
+		"F": "minecraft:polished_andesite",
+		"G": "minecraft:smooth_stone",
+		"H": "minecraft:chiseled_stone_bricks",
+		"I": "minecraft:deepslate_bricks",
+		"J": "minecraft:lantern[hanging=true]",
+		"K": "minecraft:dark_oak_door[half=lower,facing=north,hinge=left]",
+		"L": "minecraft:dark_oak_door[half=upper,facing=north,hinge=left]",
+		"M": "minecraft:iron_bars",
+		"N": "minecraft:dark_oak_door[half=lower,facing=north,hinge=right]",
+		"O": "minecraft:dark_oak_door[half=upper,facing=north,hinge=right]",
+		"P": "minecraft:lantern[hanging=false]",
+		"Q": "minecraft:stone_brick_stairs[facing=east,half=bottom]",
+		"R": "minecraft:stone_brick_stairs[facing=west,half=bottom]",
+		"S": "minecraft:stone_brick_slab[type=top]"
+	},
+	"layers": [
+		[
+			"AAAAAAAAAAAAAA",
+			"AAAAAAAAAAAAAA",
+			"AAAAAAAAAAAAAA",
+			"AAAAAAAAAAAAAA",
+			"AAAAAAAAAAAAAA",
+			"AAAAAAAAAAAAAA",
+			"AAAAAAAAAAAAAA"
+		],
+		[
+			"QBBBBB..BBBBBR",
+			"BBBBBB..BBBBBB",
+			"EEEEEE..EEEEEE",
+			"EEEEEE..EEEEEE",
+			"BAAAAIKNIAAAAB",
+			" AAAA....AAAA ",
+			" IAAI....IAAI "
+		],
+		[
+			".QBBBB..BBBBR.",
+			"BBBBBB..BBBBBB",
+			"EEEEEE..EEEEEE",
+			"EEEEEE..EEEEEE",
+			"BBBBBILOIBBBBB",
+			" BEEB....BEEB ",
+			" IBBI....IBBI "
+		],
+		[
+			"..QBBB..BBBR..",
+			"BBBBBB..BBBBBB",
+			"EEEEEE..EEEEEE",
+			"EEEEEE..EEEEEE",
+			"BBBBBIMMIBBBBB",
+			" BEEB....BEEB ",
+			" IBBI....IBBI "
+		],
+		[
+			"...QBB..BBR...",
+			"BBBBBB..BBBBBB",
+			"EEEEEEJ.EEEEEE",
+			"EEEEEE.JEEEEEE",
+			"BBBBBIIIIBBBBB",
+			" BEEB....BEEB ",
+			" IMMI....IMMI "
+		],
+		[
+			"....QB..BR....",
+			"BBBBBBBBBBBBBB",
+			"EEEEEEBBEEEEEE",
+			"EEEEEEBBEEEEEE",
+			"BBBBBBBBBBBBBB",
+			" BEEB....BEEB ",
+			" IBBI....IBBI "
+		],
+		[
+			".....QSSR.....",
+			"CCCCCCCCCCCCCC",
+			"FFFFFFFFFFFFFF",
+			"GGGGGGGGGGGGGG",
+			"HHHHHHHHHHHHHH",
+			" HHHH....HHHH ",
+			" IHHI....IHHI "
+		],
+		[
+			"..............",
+			"DDDDD....DDDDD",
+			"..............",
+			"..............",
+			"BBBBBBBBBBBBBB",
+			" BEEB....BEEB ",
+			" IBBI....IBBI "
+		],
+		[
+			"..............",
+			"..............",
+			"..............",
+			"..............",
+			"BBBBB.B.BBBBB.",
+			" BEEB....BEEB ",
+			" IBBI....IBBI "
+		],
+		[
+			"..............",
+			"..............",
+			"..............",
+			"..............",
+			".BBBB....BBBB.",
+			" BFFB....BFFB ",
+			" IBBI....IBBI "
+		],
+		[
+			"              ",
+			"              ",
+			"              ",
+			"              ",
+			" BBBB    BBBB ",
+			" B..B    B..B ",
+			" BBBB    BBBB "
+		],
+		[
+			"              ",
+			"              ",
+			"              ",
+			"              ",
+			"  B B     B B ",
+			" B       B    ",
+			" IB I    IB I "
+		],
+		[
+			"              ",
+			"              ",
+			"              ",
+			"              ",
+			"              ",
+			"              ",
+			" P  P    P  P "
+		]
+	]
+}

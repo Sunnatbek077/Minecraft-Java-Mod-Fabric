@@ -25,6 +25,8 @@ public final class Labor {
 	public static final int MASON_BUILD_PERCENT = 130;
 	/** How many mouths one farmer is counted on to feed: the floor under the number of farmers. */
 	public static final int FED_BY_ONE_FARMER = 10;
+	/** From this many workers up, a settlement always keeps at least one lumberjack and one miner. */
+	private static final int MIN_WORKERS_FOR_EVERY_TRADE = 8;
 	/** While a wall is still to be built, its material counts as wanted until this much of it lies ready. */
 	private static final int WALL_RESERVE = 3_000;
 	private static final JobType[] JOBS = JobType.values();
@@ -67,9 +69,9 @@ public final class Labor {
 			}
 		}
 
-		// Levellers: one for every six hands, in a settlement big enough to spare them, while there is ground to mend.
+		// Levellers: one for every eight hands, in a settlement big enough to spare them, while there is ground to mend.
 		open[JobType.LEVEL.ordinal()] = settlement.hasGroundWork() && workers >= MIN_WORKERS_FOR_LEVELLER
-				? Math.max(1, workers / 6) : 0;
+				? Math.max(1, workers / 8) : 0;
 		// A workshop takes one of its trade; a town's is busy enough for two.
 		for (JobType job : JOBS) {
 			if (job.workshop() != null && settlement.workshop(job.workshop()) != null) {
@@ -78,19 +80,44 @@ public final class Labor {
 		}
 		// A pen takes one herder.
 		open[JobType.HERD.ordinal()] = settlement.pens().size();
+		// A lectern takes one librarian, and there is no call for more of them than there are enchantments.
+		open[JobType.STUDY.ordinal()] = Math.min(settlement.studies(), settlement.libraries().size() * Blueprint.LIBRARY_SEATS);
+		settlement.watchStock(gameTick);
 		int[] quota = quotas(settlement, workers, open, projects + lamps);
+		// A shortage that is over lets its helpers go, all at once, so that each can have its
+		// own place back: taken one at a time, they would find those places held by one another.
+		for (Citizen citizen : settlement.members()) {
+			if (citizen.isCalledAway() && (citizen.job().product() == null || settlement.shortage(citizen.job().product()) == 0)) {
+				held[citizen.job().ordinal()]--;
+				citizen.clearJob();
+			}
+		}
 		rebalance(settlement, quota, held);
-		// Those who know a trade get first pick of it; everyone else then fills what is left.
-		for (int pass = 0; pass < 2; pass++) {
+		// Hands that are free go first to whatever the settlement is short of. After that
+		// everyone goes back to the work that is usually theirs, then those who know a trade get
+		// first pick of it, and everyone else fills what is left.
+		for (int pass = 0; pass < 4; pass++) {
 			for (Citizen citizen : settlement.members()) {
 				if (citizen.job() != null || !canWork(settlement, citizen)) {
 					continue;
 				}
-				JobType job = pass == 0 ? ownTrade(citizen, quota, held) : bestJob(citizen, quota, held);
+				JobType job = switch (pass) {
+					case 0 -> shortTrade(settlement, quota, held);
+					case 1 -> citizen.usualJob() != null && held[citizen.usualJob().ordinal()] < quota[citizen.usualJob().ordinal()]
+							? citizen.usualJob() : null;
+					case 2 -> ownTrade(citizen, quota, held);
+					default -> bestJob(citizen, quota, held);
+				};
 				int place = job == null ? NO_PLACE : freePlace(settlement, job);
 				if (place != NO_PLACE) {
 					citizen.assignJob(job, place, gameTick + LEASE_TICKS);
 					held[job.ordinal()]++;
+					// Work taken up to make good a shortage is a call away from one's own, not a
+					// change of it: when the shortage is over, the old work is gone back to.
+					boolean calledAway = job.product() != null && settlement.shortage(job.product()) > 0 && citizen.usualJob() != null;
+					if (!calledAway) {
+						citizen.setUsualJob(job);
+					}
 				}
 			}
 		}
@@ -132,8 +159,8 @@ public final class Labor {
 
 	/** The Leader leads and the General guards; in a tiny group everybody has to work. */
 	private static boolean canWork(Settlement settlement, Citizen citizen) {
-		// A child does not work, and a guard posted to a tower keeps it all day.
-		if (citizen.isChild() || citizen.post() != Citizen.NO_POST) {
+		// A child does not work, and a guard posted to a tower or walking the rounds does so all day.
+		if (citizen.isChild() || citizen.isOnDuty()) {
 			return false;
 		}
 		return settlement.size() <= 3 || (citizen.role() != Role.LEADER && citizen.role() != Role.GENERAL);
@@ -151,22 +178,49 @@ public final class Labor {
 		int feeders = food == StockStatus.CRITICAL ? (int) Math.ceil(workers * 0.65)
 				: food == StockStatus.LOW ? (int) Math.ceil(workers * 0.5)
 				: Math.max(1, (mouths + FED_BY_ONE_FARMER - 1) / FED_BY_ONE_FARMER);
+		// A granary that is still full but emptying fast is seen to before it is low.
+		if (food == StockStatus.OK && settlement.shortage(Commodity.FOOD) > 0) {
+			feeders = Math.max(feeders, (int) Math.ceil(workers * 0.3));
+		}
 		quota[JobType.FARM.ordinal()] = Math.min(Math.min(rest, feeders), open[JobType.FARM.ordinal()]);
 		rest -= quota[JobType.FARM.ordinal()];
+
+		// Next, whatever else is running out. Wood or stone that is low, or is being used faster
+		// than it comes in, calls hands away from everything that can wait: the lecterns, the
+		// levelling, the building itself. They go back when the store is made good.
+		JobType[] gatherers = {JobType.MINE, JobType.LUMBER};
+		boolean calling = false;
+		for (JobType job : gatherers) {
+			int shortage = settlement.shortage(job.product());
+			int wanted = shortage == 2 ? (int) Math.ceil(workers * 0.3) : shortage == 1 ? (int) Math.ceil(workers * 0.15)
+					// And never nobody at all: a settlement of any size keeps a hand at each.
+					: workers >= MIN_WORKERS_FOR_EVERY_TRADE ? 1 : 0;
+			calling |= shortage > 0;
+			settlement.setSiteWish(job, shortage > 0 && wanted - open[job.ordinal()] >= 2);
+			quota[job.ordinal()] = Math.min(Math.min(rest, wanted), open[job.ordinal()]);
+			rest -= quota[job.ordinal()];
+		}
 
 		// While something is being built, a third of the hands build; half of them when the
 		// store wants for nothing and gathering more would only pile it higher.
 		boolean stocked = food == StockStatus.OK && settlement.status(Commodity.WOOD) == StockStatus.OK
 				&& settlement.status(Commodity.STONE) == StockStatus.OK;
 		// With a wall going up beside a house, each site gets at least one builder.
-		int builders = Math.max(projects, stocked ? (workers + 1) / 2 : workers / 3);
+		// A big place has other things to do besides: there a quarter build, however many crews are out.
+		int builders = Math.max(projects, workers >= 40 ? workers / 4 : stocked ? (workers + 1) / 2 : workers / 3);
 		quota[JobType.BUILD.ordinal()] = Math.min(Math.min(rest, builders), open[JobType.BUILD.ordinal()]);
 		rest -= quota[JobType.BUILD.ordinal()];
-		quota[JobType.LEVEL.ordinal()] = Math.min(rest, open[JobType.LEVEL.ordinal()]);
+		// Levelling can wait while something is short: one keeps at it, the rest are called away.
+		quota[JobType.LEVEL.ordinal()] = Math.min(rest, calling ? Math.min(1, open[JobType.LEVEL.ordinal()]) : open[JobType.LEVEL.ordinal()]);
 		rest -= quota[JobType.LEVEL.ordinal()];
 		for (JobType job : JOBS) {
-			if (job.workshop() != null || job == JobType.HERD) {
-				quota[job.ordinal()] = Math.min(rest, open[job.ordinal()]);
+			if (job.workshop() != null || job == JobType.HERD || job == JobType.STUDY) {
+				// Learning is for a place that can feed it: never more than half of the hands at the
+				// lecterns. (The farmers it needs have been counted off already.)
+				// And when the store runs short of something, books wait: half of the librarians go
+				// back to bringing it in until it is made good.
+				int most = job == JobType.STUDY ? Math.min(open[job.ordinal()], stocked ? workers / 2 : workers / 4) : open[job.ordinal()];
+				quota[job.ordinal()] = Math.min(rest, most);
 				rest -= quota[job.ordinal()];
 			}
 		}
@@ -192,7 +246,7 @@ public final class Labor {
 			int given = Math.min(Math.min(rest, wanted), open[job] - quota[job]);
 			// More hands wanted here than there are places for, and not merely because the store
 			// is full of everything: the land could do with another such place.
-			settlement.setSiteWish(producers[most], need[most] >= 1.0 && quota[job] + wanted - open[job] >= 2);
+			settlement.setSiteWish(producers[most], (producers[most] != JobType.FARM && settlement.wishesSite(producers[most])) || (need[most] >= 1.0 && quota[job] + wanted - open[job] >= 2));
 			quota[job] += given;
 			rest -= given;
 			need[most] = -1;
@@ -228,6 +282,20 @@ public final class Labor {
 			}
 		}
 		return settlement.hasPlan(Policy.INDUSTRY) ? need * 1.25 : need;
+	}
+
+	/** The trade that brings in what the settlement is shortest of, if it still needs hands; null if nothing is short. */
+	private static JobType shortTrade(Settlement settlement, int[] quota, int[] held) {
+		JobType worst = null;
+		int worstShortage = 0;
+		for (JobType job : new JobType[] {JobType.FARM, JobType.MINE, JobType.LUMBER}) {
+			int shortage = settlement.shortage(job.product());
+			if (shortage > worstShortage && held[job.ordinal()] < quota[job.ordinal()]) {
+				worst = job;
+				worstShortage = shortage;
+			}
+		}
+		return worst;
 	}
 
 	/** The job this citizen is suited to, if it still needs hands. */
@@ -271,6 +339,10 @@ public final class Labor {
 			Building pen = settlement.building(place);
 			return pen != null && Blueprint.isPen(pen.blueprint()) && pen.stage() == Building.Stage.COMPLETE;
 		}
+		if (job == JobType.STUDY) {
+			Building library = settlement.building(place);
+			return library != null && library.blueprint().equals(Blueprint.LIBRARY) && library.stage() == Building.Stage.COMPLETE;
+		}
 		if (!job.hasWorkSite()) {
 			if (place == EVERYWHERE) {
 				return settlement.hasLampWork();
@@ -290,6 +362,14 @@ public final class Labor {
 		if (job.workshop() != null) {
 			Building workshop = settlement.workshop(job.workshop());
 			return workshop == null ? NO_PLACE : workshop.id();
+		}
+		if (job == JobType.STUDY) {
+			for (Building library : settlement.libraries()) {
+				if (holders(settlement, job, library.id()) < Blueprint.LIBRARY_SEATS) {
+					return library.id();
+				}
+			}
+			return NO_PLACE;
 		}
 		if (job == JobType.HERD) {
 			for (Building pen : settlement.pens()) {

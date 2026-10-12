@@ -58,7 +58,8 @@ class ConstructionTest {
 		}
 		for (Blueprint blueprint : library.all()) {
 			String id = blueprint.id();
-			int widest = id.startsWith(Blueprint.MAIN_STORE) ? 25 : 13;
+			// The main storehouse has a lot set aside for it, and a city's gatehouse stands in its wall, not on a lot.
+			int widest = id.startsWith(Blueprint.MAIN_STORE) ? 25 : id.equals(Fortification.GREAT_GATE) ? 14 : 13;
 			assertTrue(blueprint.width() <= widest && blueprint.depth() <= widest, id + " fits a lot");
 			int doors = 0;
 			int bedHeads = 0;

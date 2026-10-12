@@ -16,9 +16,8 @@
 		"G": "minecraft:podzol",
 		"H": "minecraft:rooted_dirt",
 		"I": "minecraft:spruce_fence_gate[facing=south]",
-		"J": "minecraft:composter",
-		"K": "minecraft:water_cauldron[level=3]",
-		"L": "minecraft:hay_block"
+		"J": "minecraft:water_cauldron[level=3]",
+		"K": "minecraft:hay_block"
 	},
 	"layers": [
 		[
@@ -32,11 +31,11 @@
 		],
 		[
 			"BDDDDDDDB",
-			"DB..B.JKD",
-			"DF..F...D",
+			"DB..B...D",
+			"DF..F.J.D",
 			"D.......D",
+			"D.....K.D",
 			"D.......D",
-			"D......LD",
 			"BDDDIDDDB"
 		],
 		[
@@ -44,7 +43,7 @@
 			".B..B....",
 			".F..F....",
 			".........",
-			".........",
+			"......K..",
 			".........",
 			"B.......B"
 		],

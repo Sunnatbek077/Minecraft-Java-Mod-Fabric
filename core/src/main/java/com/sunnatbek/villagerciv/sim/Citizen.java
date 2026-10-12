@@ -39,6 +39,7 @@ public final class Citizen {
 	private int post = NO_POST;
 	private final java.util.Map<String, Integer> finds = new java.util.LinkedHashMap<>();
 	private int postPlace;
+	private Patrol patrol = Patrol.NONE;
 	private int home = NO_HOME;
 	private int bed;
 	private SimRecord<?> owner;
@@ -211,6 +212,29 @@ public final class Citizen {
 		this.postPlace = place;
 	}
 
+	/** What a guard without a post on the wall does: nothing more than the night watch, or the rounds of the settlement, with a sword or a crossbow. */
+	public enum Patrol {
+		NONE, SWORD, CROSSBOW
+	}
+
+	/**
+	 * Whether this guard walks the rounds inside the settlement, and armed with what. Like a post,
+	 * it is a duty for the whole day and leaves no time for other work. Worked out afresh at every
+	 * review; not saved.
+	 */
+	public Patrol patrol() {
+		return patrol;
+	}
+
+	public void setPatrol(Patrol patrol) {
+		this.patrol = patrol;
+	}
+
+	/** Whether guarding is all this citizen does: posted on the wall, or on patrol. */
+	public boolean isOnDuty() {
+		return post != NO_POST || patrol != Patrol.NONE;
+	}
+
 	/** Whether this citizen fights: the General, and those on guard duty. */
 	public boolean isDefender() {
 		return role == Role.GENERAL || guard;
@@ -264,6 +288,26 @@ public final class Citizen {
 			this.leaseUntil = leaseUntil;
 			changed();
 		}
+	}
+
+	private JobType usualJob;
+
+	/**
+	 * The work this citizen does when the settlement wants for nothing: what it goes back to
+	 * after being called away to make good a shortage. Null until it has had a job of its own
+	 * choosing. Not saved: after a restart everyone simply settles into work again.
+	 */
+	public JobType usualJob() {
+		return usualJob;
+	}
+
+	public void setUsualJob(JobType usualJob) {
+		this.usualJob = usualJob;
+	}
+
+	/** Whether the citizen is away from its usual work, doing what the settlement is short of. */
+	public boolean isCalledAway() {
+		return job != null && usualJob != null && job != usualJob;
 	}
 
 	public void clearJob() {

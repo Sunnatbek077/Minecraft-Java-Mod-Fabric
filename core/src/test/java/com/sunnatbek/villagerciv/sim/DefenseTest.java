@@ -251,11 +251,15 @@ class DefenseTest {
 				.filter(b -> b.blueprint().equals(Fortification.TOWER) && b.stage() == Building.Stage.COMPLETE).count();
 		assertEquals(4, towers, "the wall is up, towers and all");
 		List<Citizen> posted = settlement.members().stream().filter(c -> c.post() != Citizen.NO_POST).toList();
-		assertEquals(settlement.guards(), posted.size(), "every guard has a place on the wall while there are places");
+		long patrols = settlement.members().stream().filter(c -> c.patrol() != Citizen.Patrol.NONE).count();
+		assertEquals(settlement.guards(), posted.size() + patrols, "every guard has a place on the wall or a round to walk");
+		assertTrue(patrols <= posted.size(), "no more on patrol than on the wall: " + patrols + " and " + posted.size());
+		assertTrue(settlement.members().stream().filter(c -> c.patrol() != Citizen.Patrol.NONE).allMatch(c -> c.job() == null && c.isGuard()),
+				"and a patrol does nothing else");
 		assertTrue(posted.size() >= towers, "a guard to each tower first: " + posted.size());
 		assertEquals(posted.size(), posted.stream().map(c -> c.post() * 10 + c.postPlace()).distinct().count(), "no two in one place");
 		long adults = settlement.size() - settlement.children();
-		assertTrue(settlement.guards() <= adults / 3, "never more than a third of the grown citizens: " + settlement.guards() + " of " + adults);
+		assertTrue(settlement.guards() <= adults / 2, "never more than half of the grown citizens: " + settlement.guards() + " of " + adults);
 		long gates = settlement.buildings().stream().filter(b -> b.blueprint().equals(Fortification.GATE)).count();
 		if (settlement.guards() >= towers + gates) {
 			assertEquals(gates, posted.stream().filter(c -> settlement.building(c.post()).blueprint().equals(Fortification.GATE)).count(),

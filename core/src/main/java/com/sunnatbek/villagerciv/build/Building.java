@@ -24,7 +24,9 @@ public final class Building {
 		UNDER_CONSTRUCTION,
 		COMPLETE,
 		/** Something was broken; the building is being gone over again. */
-		UNDER_REPAIR
+		UNDER_REPAIR,
+		/** No longer wanted: it is taken down as soon as its ground is seen, and then it is gone. */
+		CONDEMNED
 	}
 
 	private final int id;

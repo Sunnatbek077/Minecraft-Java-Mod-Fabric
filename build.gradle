@@ -26,6 +26,8 @@ loom {
 			vmArg "-Dvillagerciv.autotest=${project.findProperty('autotestTicks') ?: '24000'}"
 			vmArg "-Dvillagerciv.autotest.showcase=${project.findProperty('autotestShowcase') ?: 'false'}"
 			vmArg "-Dvillagerciv.autotest.expand=${project.findProperty('autotestExpand') ?: 'false'}"
+			vmArg "-Dvillagerciv.autotest.shortage=${project.findProperty('autotestShortage') ?: 'false'}"
+			vmArg "-Dvillagerciv.autotest.roam=${project.findProperty('autotestRoam') ?: 'false'}"
 		}
 	}
 

@@ -32,6 +32,9 @@ public record Blueprint(String id, String name, Category category, int width, in
 	/** Ids of the main storehouse's designs start with this, followed by the tier: 1, 2, 3. */
 	public static final String MAIN_STORE = "great_store_";
 	public static final String SMITHY = "smithy";
+	/** Where librarians keep the enchantments, and how many lecterns one such building has. */
+	public static final String LIBRARY = "library";
+	public static final int LIBRARY_SEATS = 48;
 	/** The pens animals are kept in, one kind to each. */
 	public static final java.util.List<String> PENS = java.util.List.of("cattle_pen", "sheep_pen", "pig_sty", "chicken_coop");
 

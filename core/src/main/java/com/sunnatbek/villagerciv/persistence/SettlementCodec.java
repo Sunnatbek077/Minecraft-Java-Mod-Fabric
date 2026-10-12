@@ -89,6 +89,10 @@ final class SettlementCodec {
 		json.addProperty("lastThreatTick", settlement.lastThreatTick());
 		json.addProperty("wallPieces", settlement.wallPieces());
 		json.addProperty("expansion", settlement.expansion());
+		json.addProperty("wallShape", settlement.wallShape().name());
+		if (settlement.plannedShape() != null) {
+			json.addProperty("plannedShape", settlement.plannedShape().name());
+		}
 		JsonArray wall = new JsonArray();
 		for (WallPiece piece : settlement.wallPlan()) {
 			JsonObject w = new JsonObject();
@@ -264,6 +268,12 @@ final class SettlementCodec {
 				settlement.setWallPlan(pieces, json.get("wallPieces").getAsInt());
 				if (json.has("expansion")) {
 					settlement.setExpansion(json.get("expansion").getAsInt());
+				}
+				if (json.has("plannedShape")) {
+					settlement.setPlannedShape(com.sunnatbek.villagerciv.build.ShapedWall.Shape.valueOf(json.get("plannedShape").getAsString()));
+				}
+				if (json.has("wallShape")) {
+					settlement.setWallShape(com.sunnatbek.villagerciv.build.ShapedWall.Shape.valueOf(json.get("wallShape").getAsString()));
 				}
 			}
 			if (json.has("plans")) {

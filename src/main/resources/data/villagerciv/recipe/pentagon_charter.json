@@ -1,0 +1,16 @@
+{
+	"type": "minecraft:crafting_shapeless",
+	"category": "misc",
+	"group": "villagerciv_pentagon_charter",
+	"ingredients": [
+		"villagerciv:expansion_charter",
+		"minecraft:stone_bricks",
+		"minecraft:stone_bricks",
+		"minecraft:stone_bricks",
+		"minecraft:stone_bricks",
+		"minecraft:stone_bricks"
+	],
+	"result": {
+		"id": "villagerciv:pentagon_charter"
+	}
+}

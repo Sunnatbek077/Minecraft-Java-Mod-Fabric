@@ -81,6 +81,7 @@ public final class EmbodimentController {
 	private final Warehouse warehouse = new Warehouse(this);
 	private final Landscaper landscaper = new Landscaper();
 	private static final long RESURVEY_TICKS = 6_000;
+	private static final int MAX_DEMOLITIONS_PER_RUN = 2;
 	private final Map<com.sunnatbek.villagerciv.api.SettlementId, Long> resurveyedAt = new HashMap<>();
 	private final Lamplighter lamplighter = new Lamplighter();
 	private final Set<Long> minesLookedAt = new java.util.HashSet<>();
@@ -114,7 +115,19 @@ public final class EmbodimentController {
 		}
 		int applied = 0;
 		for (Settlement settlement : simulation.state().settlements().all()) {
+			// What has been condemned comes down, a few buildings at a time.
+			List<Building> gone = new ArrayList<>();
 			for (Building building : settlement.buildings()) {
+				if (building.stage() == Building.Stage.CONDEMNED && gone.size() < MAX_DEMOLITIONS_PER_RUN
+						&& buildSites.demolish(level, settlement, building)) {
+					gone.add(building);
+				}
+			}
+			gone.forEach(settlement::strike);
+			for (Building building : settlement.buildings()) {
+				if (building.stage() == Building.Stage.CONDEMNED) {
+					continue;
+				}
 				buildSites.checkDesign(settlement, building);
 				buildSites.bringToGrade(level, settlement, building, goods -> warehouse.deposit(level, settlement, goods));
 				while (building.applied() < building.progress() && applied < MAX_DEFERRED_EDITS_PER_RUN) {
@@ -128,6 +141,107 @@ public final class EmbodimentController {
 				}
 			}
 		}
+	}
+
+	private static final int INTRUDER_LOOK_TICKS = 20;
+	private final Map<com.sunnatbek.villagerciv.api.SettlementId, List<net.minecraft.world.entity.monster.Monster>> intruders = new HashMap<>();
+	private final Map<com.sunnatbek.villagerciv.api.SettlementId, Long> intrudersSeenAt = new HashMap<>();
+
+	/**
+	 * The monster on a settlement's ground that is nearest to one of its guards, or null if the
+	 * ground is clear. The whole of the ground inside the wall is watched, not just what the
+	 * guard can see: word of something coming over the wall at the far end gets round. What is
+	 * deep below ground, in caves and mines, is not the patrol's to chase.
+	 *
+	 * @param notCreepers leave creepers out: nothing to go at with a sword
+	 */
+	public net.minecraft.world.entity.monster.Monster intruder(ServerLevel level, Settlement settlement, net.minecraft.world.entity.Entity guard, boolean notCreepers) {
+		long now = gameTick();
+		if (now - intrudersSeenAt.getOrDefault(settlement.id(), -1L - INTRUDER_LOOK_TICKS) >= INTRUDER_LOOK_TICKS) {
+			intrudersSeenAt.put(settlement.id(), now);
+			int[] bounds = settlement.groundBounds();
+			int grade = settlement.grade();
+			intruders.put(settlement.id(), level.getEntitiesOfClass(net.minecraft.world.entity.monster.Monster.class,
+					// Up to the wall and no further: what stands outside it is for the guards on the wall.
+					new net.minecraft.world.phys.AABB(bounds[0] - 3, grade - 4, bounds[1] - 3, bounds[2] + 4, grade + 30, bounds[3] + 4),
+					monster -> monster.isAlive()));
+		}
+		net.minecraft.world.entity.monster.Monster nearest = null;
+		double nearestDistance = Double.MAX_VALUE;
+		for (net.minecraft.world.entity.monster.Monster monster : intruders.getOrDefault(settlement.id(), List.of())) {
+			if (!monster.isAlive() || (notCreepers && monster instanceof net.minecraft.world.entity.monster.Creeper)
+					|| now < outOfReachUntil.getOrDefault(monster.getId(), 0L) || answering(monster, guard, now) >= GUARDS_PER_INTRUDER) {
+				continue;
+			}
+			double distance = monster.distanceToSqr(guard);
+			if (distance < nearestDistance) {
+				nearest = monster;
+				nearestDistance = distance;
+			}
+		}
+		return nearest;
+	}
+
+	/** So many guards go for one monster; the rest keep to their rounds. */
+	private static final int GUARDS_PER_INTRUDER = 4;
+	private static final long ANSWER_LAPSE_TICKS = 60;
+	private final Map<Integer, Map<Integer, Long>> answering = new HashMap<>();
+
+	/** A patrol says it is still after a monster. Said every second or so; a guard that stops saying it no longer counts. */
+	public void answer(net.minecraft.world.entity.monster.Monster monster, net.minecraft.world.entity.Entity guard) {
+		if (answering.size() > 256) {
+			answering.keySet().removeIf(id -> server.overworld().getEntity(id) == null);
+		}
+		answering.computeIfAbsent(monster.getId(), _ -> new HashMap<>()).put(guard.getId(), gameTick());
+	}
+
+	/** How many guards other than this one are after a monster. */
+	private int answering(net.minecraft.world.entity.monster.Monster monster, net.minecraft.world.entity.Entity guard, long now) {
+		Map<Integer, Long> guards = answering.get(monster.getId());
+		if (guards == null) {
+			return 0;
+		}
+		guards.values().removeIf(since -> now - since > ANSWER_LAPSE_TICKS);
+		return guards.size() - (guards.containsKey(guard.getId()) ? 1 : 0);
+	}
+
+	private static final long OUT_OF_REACH_TICKS = 2_400;
+	private final Map<Integer, Long> outOfReachUntil = new HashMap<>();
+
+	/**
+	 * A patrol could not get at a monster: it is walled in somewhere, or up where nobody can
+	 * climb. It is left alone for a while, so that the whole watch does not stand looking at it
+	 * while something else comes over the wall.
+	 */
+	public void outOfReach(net.minecraft.world.entity.monster.Monster monster) {
+		if (outOfReachUntil.size() > 256) {
+			outOfReachUntil.values().removeIf(until -> until < gameTick());
+		}
+		outOfReachUntil.put(monster.getId(), gameTick() + OUT_OF_REACH_TICKS);
+	}
+
+	/** How many citizens stand all but inside another one, for the reports: none, if they make room for each other. */
+	int overlapping() {
+		List<CitizenEntity> all = new ArrayList<>(bodies.values());
+		int overlapping = 0;
+		for (int i = 0; i < all.size(); i++) {
+			for (int j = 0; j < all.size(); j++) {
+				if (i != j && !all.get(i).isSleeping() && all.get(i).distanceToSqr(all.get(j)) < 0.3 * 0.3) {
+					overlapping++;
+					if (System.getProperty("villagerciv.autotest") != null && all.get(i).citizen() != null) {
+						VillagerCivMod.LOGGER.info("AUTOTEST     inside another: {} job={} post={} patrol={} doing={}", all.get(i).citizen().name(),
+								all.get(i).citizen().job(), all.get(i).citizen().post(), all.get(i).citizen().patrol(), all.get(i).citizen().activity());
+					}
+					break;
+				}
+			}
+		}
+		return overlapping;
+	}
+
+	/** How many monsters were on a settlement's ground at the last look, for the reports. */
+	int intruderCount(Settlement settlement) {
+		return (int) intruders.getOrDefault(settlement.id(), List.of()).stream().filter(monster -> monster.isAlive()).count();
 	}
 
 	public Landscaper landscaper() {
@@ -144,6 +258,7 @@ public final class EmbodimentController {
 		if (level.players().isEmpty()) {
 			return;
 		}
+		releaseStranded();
 		for (Settlement settlement : simulation.state().settlements().all()) {
 			// A settlement with no room left has its land looked over again now and then: what
 			// the levellers have made of it since may be ground to build on.
@@ -152,6 +267,11 @@ public final class EmbodimentController {
 				resurveyedAt.put(settlement.id(), gameTick());
 				VillagerCivMod.founding().resurvey(settlement);
 			}
+			if (VillagerCivMod.founding() != null) {
+				VillagerCivMod.founding().growOnKeptCharter(settlement);
+			}
+			// How many enchantments there are is the game's to say; the settlement wants a librarian for each.
+			settlement.setStudies(Librarians.all(level).size());
 			landscaper.scan(level, settlement);
 			lamplighter.scan(level, settlement);
 			for (WorkSite site : settlement.sites()) {
@@ -397,6 +517,39 @@ public final class EmbodimentController {
 				}
 			}
 			body.discard();
+		}
+	}
+
+	/**
+	 * Bodies left standing where the game no longer runs things: a builder set down at a far
+	 * stretch of wall while a player was there, and still there after the player has gone. Such a
+	 * body does nothing, and while it exists its citizen's work is not reckoned either. It is let
+	 * go, and its citizen counted as back in the settlement, working on as those nobody sees do.
+	 */
+	void releaseStranded() {
+		List<CitizenEntity> stranded = null;
+		for (CitizenEntity body : bodies.values()) {
+			if (body.group() instanceof Settlement && body.isAlive() && body.level() instanceof ServerLevel level
+					&& !level.isPositionEntityTicking(body.blockPosition())) {
+				if (stranded == null) {
+					stranded = new ArrayList<>();
+				}
+				stranded.add(body);
+			}
+		}
+		if (stranded == null) {
+			return;
+		}
+		for (CitizenEntity body : stranded) {
+			Settlement settlement = (Settlement) body.group();
+			Citizen citizen = body.citizen();
+			body.discard();
+			if (citizen != null) {
+				// Each to a spot of its own round the Town Center, not all on one block.
+				double angle = server.overworld().getRandom().nextDouble() * Math.PI * 2;
+				double away = 4.0 + server.overworld().getRandom().nextDouble() * 10.0;
+				citizen.setPosition(settlement.anchorX() + 0.5 + Math.cos(angle) * away, settlement.anchorY(), settlement.anchorZ() + 0.5 + Math.sin(angle) * away);
+			}
 		}
 	}
 

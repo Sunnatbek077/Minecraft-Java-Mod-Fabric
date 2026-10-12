@@ -21,6 +21,9 @@ public final class Fortification {
 	/** The gate and tower of the stone ring: the same shapes, in stone. */
 	public static final String STONE_GATE = "stone_gate";
 	public static final String STONE_TOWER = "stone_tower";
+	/** The gatehouse and tower of a city's great wall. */
+	public static final String GREAT_GATE = "great_gate";
+	public static final String GREAT_TOWER = "great_tower";
 	/** Half the side of the second ring: it takes in the whole of the enlarged survey but for a margin. */
 	public static final int OUTER_RADIUS = 88;
 	private static final int MARGIN = 5;
@@ -59,17 +62,60 @@ public final class Fortification {
 		return ring(settlement, library, radius(settlement), false);
 	}
 
-	/** The second ring: stone, and far enough out to hold a town. The first stays standing inside it. */
+	/**
+	 * The second ring: stone, and far enough out to hold a town. Besides its corner towers it has
+	 * towers along its sides, sixteen in all. Once it stands, the first ring inside it is taken down.
+	 */
 	public static List<WallPiece> planOuter(Settlement settlement, BlueprintLibrary library) {
 		return ring(settlement, library, OUTER_RADIUS, true);
 	}
 
+	/**
+	 * Where a side of the stone ring is broken, measured along it from its middle: by its gate
+	 * (0) and by its towers. The south and north sides carry four towers each, the west and east
+	 * two, which with the four corners makes sixteen.
+	 */
+	private static int[] stops(int side) {
+		return side % 2 == 0 ? new int[] {-59, -29, 0, 29, 59} : new int[] {-44, 0, 44};
+	}
+
+	/**
+	 * The towers along the sides of the stone ring. A ring planned before it had any is given
+	 * them afterwards: each is built over the stretch of wall that stands there.
+	 */
+	public static List<WallPiece> sideTowers(Settlement settlement, BlueprintLibrary library) {
+		Blueprint tower = library.get(STONE_TOWER).orElseThrow();
+		List<WallPiece> towers = new ArrayList<>();
+		for (int side = 0; side < 4; side++) {
+			for (int stop : stops(side)) {
+				if (stop != 0) {
+					towers.add(piece(settlement.anchorX(), settlement.anchorZ(), OUTER_RADIUS, side, stop - TOWER_HALF,
+							tower.width(), tower.depth(), STONE_TOWER));
+				}
+			}
+		}
+		return towers;
+	}
+
+	/**
+	 * Which of a settlement's rings a piece of wall belongs to: 0 for the first, of wood; 1 for
+	 * the stone ring of a town; 2 for the great wall of a city.
+	 */
+	public static int ringOf(String blueprint) {
+		return isFirstRing(blueprint) ? 0 : ShapedWall.isGreat(blueprint) ? 2 : 1;
+	}
+
+	/** Whether a piece belongs to the first ring, of wood. */
+	public static boolean isFirstRing(String blueprint) {
+		return blueprint.equals(GATE) || blueprint.equals(TOWER) || blueprint.startsWith(WallDesigns.PALISADE_PREFIX);
+	}
+
 	public static boolean isGate(String blueprint) {
-		return blueprint.equals(GATE) || blueprint.equals(STONE_GATE);
+		return blueprint.equals(GATE) || blueprint.equals(STONE_GATE) || blueprint.equals(GREAT_GATE);
 	}
 
 	public static boolean isTower(String blueprint) {
-		return blueprint.equals(TOWER) || blueprint.equals(STONE_TOWER);
+		return blueprint.equals(TOWER) || blueprint.equals(STONE_TOWER) || blueprint.equals(GREAT_TOWER);
 	}
 
 	private static List<WallPiece> ring(Settlement settlement, BlueprintLibrary library, int radius, boolean stone) {
@@ -86,9 +132,17 @@ public final class Fortification {
 		// Sides in the order south, west, north, east: the rotation that turns a design's front outwards.
 		for (int side = 0; side < 4; side++) {
 			gates.add(piece(ax, az, radius, side, -GATE_HALF, gate.width(), gate.depth(), gateId));
-			// Wall runs from just past the corner tower to the gate, on either hand.
-			addRun(walls, ax, az, radius, side, -radius + TOWER_HALF + 1, -GATE_HALF - 1, stone);
-			addRun(walls, ax, az, radius, side, GATE_HALF + 1, radius - TOWER_HALF - 1, stone);
+			// Wall runs from just past the corner tower to the gate, on either hand, broken by
+			// whatever towers stand along the side.
+			int from = -radius + TOWER_HALF + 1;
+			for (int stop : stone ? stops(side) : new int[] {0}) {
+				if (stop != 0) {
+					towers.add(piece(ax, az, radius, side, stop - TOWER_HALF, tower.width(), tower.depth(), towerId));
+				}
+				addRun(walls, ax, az, radius, side, from, stop - TOWER_HALF - 1, stone);
+				from = stop + TOWER_HALF + 1;
+			}
+			addRun(walls, ax, az, radius, side, from, radius - TOWER_HALF - 1, stone);
 		}
 		for (int cornerX = -1; cornerX <= 1; cornerX += 2) {
 			for (int cornerZ = -1; cornerZ <= 1; cornerZ += 2) {

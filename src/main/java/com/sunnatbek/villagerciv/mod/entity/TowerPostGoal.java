@@ -113,22 +113,30 @@ final class TowerPostGoal extends Goal {
 
 	/** Where on a watchtower's platform each of its guards stands: apart, and clear of the lantern in the middle. */
 	private static final double[][] TOWER_PLACES = {{1.5, 1.5}, {3.5, 3.5}, {1.5, 3.5}};
+	private static final double[][] GREAT_TOWER_PLACES = {{2.5, 2.5}, {4.5, 4.5}, {4.5, 2.5}};
+	private static final int GREAT_PLATFORM_HEIGHT = 11;
+	private static final int GREAT_GATE_PLATFORM_HEIGHT = 7;
 
 	private boolean onGate() {
 		return Fortification.isGate(tower.blueprint());
 	}
 
+	private boolean great() {
+		return com.sunnatbek.villagerciv.build.ShapedWall.isGreat(tower.blueprint());
+	}
+
 	private double platformX() {
-		return onGate() ? tower.x() + tower.sizeX() / 2.0 : tower.x() + TOWER_PLACES[place()][0];
+		return onGate() ? tower.x() + tower.sizeX() / 2.0 : tower.x() + (great() ? GREAT_TOWER_PLACES : TOWER_PLACES)[place()][0];
 	}
 
 	private double platformZ() {
-		return onGate() ? tower.z() + tower.sizeZ() / 2.0 : tower.z() + TOWER_PLACES[place()][1];
+		return onGate() ? tower.z() + tower.sizeZ() / 2.0 : tower.z() + (great() ? GREAT_TOWER_PLACES : TOWER_PLACES)[place()][1];
 	}
 
 	/** Both a tower and a gate have a railed platform under a roof, at a set height in their design. */
 	private double platformY() {
-		return tower.y() + (onGate() ? GATE_PLATFORM_HEIGHT : PLATFORM_HEIGHT);
+		// A city's tower has its platform higher up, and its gatehouse is manned from the wall walk over the passage.
+		return tower.y() + (onGate() ? (great() ? GREAT_GATE_PLATFORM_HEIGHT : GATE_PLATFORM_HEIGHT) : great() ? GREAT_PLATFORM_HEIGHT : PLATFORM_HEIGHT);
 	}
 
 	private int place() {

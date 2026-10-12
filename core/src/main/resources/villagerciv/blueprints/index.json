@@ -50,6 +50,7 @@
 		"smithy",
 		"masons_yard",
 		"market",
+		"library",
 		"cattle_pen",
 		"sheep_pen",
 		"pig_sty",
@@ -61,6 +62,8 @@
 		"tavern",
 		"chapel",
 		"stone_gate",
-		"stone_tower"
+		"stone_tower",
+		"great_gate",
+		"great_tower"
 	]
 }
