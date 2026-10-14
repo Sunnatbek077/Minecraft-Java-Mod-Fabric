@@ -3,11 +3,12 @@ package com.sunnatbek.villagerciv.scheduler;
 /** Hardware presets: how much of the machine the mod is allowed to use. */
 public enum QualityPreset {
 	// The first figure is how many citizens can have a body at once. Even the lowest covers a
-	// whole town: a citizen past the budget is not seen at all, which to the player is a
-	// villager that vanished the moment it was recruited.
-	LOW(160, 1_500_000L, 1),
-	MEDIUM(260, 2_500_000L, 2),
-	HIGH(420, 4_000_000L, 2);
+	// city of a couple of hundred: a citizen past the budget is not seen at all, which to the
+	// player is a villager that vanished the moment it was recruited, and work that only a body
+	// does (levelling the ground) is not done by it.
+	LOW(240, 1_500_000L, 1),
+	MEDIUM(340, 2_500_000L, 2),
+	HIGH(500, 4_000_000L, 2);
 
 	private static final long GIB = 1024L * 1024L * 1024L;
 

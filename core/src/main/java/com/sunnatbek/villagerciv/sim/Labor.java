@@ -61,7 +61,9 @@ public final class Labor {
 			}
 			workers++;
 			if (citizen.job() != null) {
-				if (gameTick > citizen.leaseUntil() || !placeExists(settlement, citizen.job(), citizen.jobSite())) {
+				// A librarian keeps its enchantment for good: its place at the lectern never lapses.
+				boolean lapsed = gameTick > citizen.leaseUntil() && citizen.job() != JobType.STUDY;
+				if (lapsed || !placeExists(settlement, citizen.job(), citizen.jobSite())) {
 					citizen.clearJob();
 				} else {
 					held[citizen.job().ordinal()]++;
@@ -70,8 +72,9 @@ public final class Labor {
 		}
 
 		// Levellers: one for every eight hands, in a settlement big enough to spare them, while there is ground to mend.
+		// When whole hillsides stand inside its bounds, levelling is the main work: two hands in five.
 		open[JobType.LEVEL.ordinal()] = settlement.hasGroundWork() && workers >= MIN_WORKERS_FOR_LEVELLER
-				? Math.max(1, workers / 8) : 0;
+				? Math.max(1, settlement.hasHeavyGroundWork() ? workers * 2 / 5 : workers / 8) : 0;
 		// A workshop takes one of its trade; a town's is busy enough for two.
 		for (JobType job : JOBS) {
 			if (job.workshop() != null && settlement.workshop(job.workshop()) != null) {
@@ -83,7 +86,7 @@ public final class Labor {
 		// A lectern takes one librarian, and there is no call for more of them than there are enchantments.
 		open[JobType.STUDY.ordinal()] = Math.min(settlement.studies(), settlement.libraries().size() * Blueprint.LIBRARY_SEATS);
 		settlement.watchStock(gameTick);
-		int[] quota = quotas(settlement, workers, open, projects + lamps);
+		int[] quota = quotas(settlement, workers, open, projects + lamps, held[JobType.STUDY.ordinal()]);
 		// A shortage that is over lets its helpers go, all at once, so that each can have its
 		// own place back: taken one at a time, they would find those places held by one another.
 		for (Citizen citizen : settlement.members()) {
@@ -167,9 +170,12 @@ public final class Labor {
 	}
 
 	/** How many workers each job should have. Food comes first, and more so when it is short. */
-	private static int[] quotas(Settlement settlement, int workers, int[] open, int projects) {
+	private static int[] quotas(Settlement settlement, int workers, int[] open, int projects, int librarians) {
 		int[] quota = new int[JOBS.length];
-		int rest = workers;
+		// Those who keep an enchantment are not hands to be moved about: whatever the settlement
+		// is short of, they stay at their lecterns, and the rest is shared out among the others.
+		int seated = Math.min(librarians, open[JobType.STUDY.ordinal()]);
+		int rest = workers - seated;
 		StockStatus food = settlement.status(Commodity.FOOD);
 
 		// First, enough farmers that nobody goes hungry: one for every so many mouths, and a
@@ -208,19 +214,31 @@ public final class Labor {
 		// With a wall going up beside a house, each site gets at least one builder.
 		// A big place has other things to do besides: there a quarter build, however many crews are out.
 		int builders = Math.max(projects, workers >= 40 ? workers / 4 : stocked ? (workers + 1) / 2 : workers / 3);
-		quota[JobType.BUILD.ordinal()] = Math.min(Math.min(rest, builders), open[JobType.BUILD.ordinal()]);
-		rest -= quota[JobType.BUILD.ordinal()];
 		// Levelling can wait while something is short: one keeps at it, the rest are called away.
-		quota[JobType.LEVEL.ordinal()] = Math.min(rest, calling ? Math.min(1, open[JobType.LEVEL.ordinal()]) : open[JobType.LEVEL.ordinal()]);
-		rest -= quota[JobType.LEVEL.ordinal()];
+		// But hillsides are not left standing because the builders are using wood quickly: with
+		// that much ground to mend, only a store that is all but empty takes the levellers off it.
+		boolean dire = settlement.shortage(Commodity.WOOD) == 2 || settlement.shortage(Commodity.STONE) == 2;
+		int levellers = (settlement.hasHeavyGroundWork() ? dire : calling) ? Math.min(1, open[JobType.LEVEL.ordinal()]) : open[JobType.LEVEL.ordinal()];
+		// Ground that is all hills comes before what is to be built on it; a patch here and there comes after.
+		JobType[] order = settlement.hasHeavyGroundWork() ? new JobType[] {JobType.LEVEL, JobType.BUILD} : new JobType[] {JobType.BUILD, JobType.LEVEL};
+		for (JobType job : order) {
+			int wanted = job == JobType.BUILD ? Math.min(builders, open[JobType.BUILD.ordinal()]) : levellers;
+			quota[job.ordinal()] = Math.min(rest, wanted);
+			rest -= quota[job.ordinal()];
+		}
 		for (JobType job : JOBS) {
 			if (job.workshop() != null || job == JobType.HERD || job == JobType.STUDY) {
-				// Learning is for a place that can feed it: never more than half of the hands at the
-				// lecterns. (The farmers it needs have been counted off already.)
-				// And when the store runs short of something, books wait: half of the librarians go
-				// back to bringing it in until it is made good.
-				int most = job == JobType.STUDY ? Math.min(open[job.ordinal()], stocked ? workers / 2 : workers / 4) : open[job.ordinal()];
-				quota[job.ordinal()] = Math.min(rest, most);
+				if (job == JobType.STUDY) {
+					// Learning is for a place that can feed it: new librarians are taken on only up
+					// to half of the hands (a quarter while the store is short of something). Those
+					// already seated are kept whatever that count comes to.
+					int most = Math.min(open[job.ordinal()], stocked ? workers / 2 : workers / 4);
+					int more = Math.min(rest, Math.max(0, most - seated));
+					quota[job.ordinal()] = seated + more;
+					rest -= more;
+					continue;
+				}
+				quota[job.ordinal()] = Math.min(rest, open[job.ordinal()]);
 				rest -= quota[job.ordinal()];
 			}
 		}

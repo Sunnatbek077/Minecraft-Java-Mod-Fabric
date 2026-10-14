@@ -417,11 +417,39 @@ public final class Settlement implements SimRecord<SettlementId>, CitizenGroup {
 
 	/** Whether there are holes in the settlement's ground waiting to be filled. Told by whoever can see the ground; not saved. */
 	public boolean hasGroundWork() {
-		return groundWork;
+		return groundWork || heavyGroundWork;
 	}
 
 	public void setGroundWork(boolean groundWork) {
 		this.groundWork = groundWork;
+	}
+
+	private static final int HEAVY_GROUND_WORK = 1_500;
+	private static final int LIGHT_GROUND_WORK = 300;
+	private boolean heavyGroundWork;
+
+	/**
+	 * Told how many columns of the settlement's ground were found out of level in one look over
+	 * all of it. Thousands mean whole hillsides stand inside its bounds, as they do after its
+	 * land is enlarged; it stays "heavy" until a look finds only a few hundred, so that the crews
+	 * are not sent home and called back with every patch they finish. Saved, so that the work
+	 * goes on from the first moment the world is opened again.
+	 */
+	public void setGroundBacklog(int spots) {
+		if (spots >= HEAVY_GROUND_WORK) {
+			heavyGroundWork = true;
+		} else if (spots < LIGHT_GROUND_WORK) {
+			heavyGroundWork = false;
+		}
+	}
+
+	/** Whether so much ground is out of level that levelling it is the settlement's main work for now. */
+	public boolean hasHeavyGroundWork() {
+		return heavyGroundWork;
+	}
+
+	public void setHeavyGroundWork(boolean heavy) {
+		heavyGroundWork = heavy;
 	}
 
 	/** Whether there are dark corners in the settlement waiting for a lamp. Told like {@link #hasGroundWork}; not saved. */

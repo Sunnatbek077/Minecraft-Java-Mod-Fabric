@@ -41,10 +41,13 @@ public final class Landscaper {
 	/** How near a building the ground keeps to the building's own level, and how far out its slope is looked for. */
 	private static final int APRON = 2;
 	private static final int STRUCTURE_REACH = 12;
-	private static final int COLUMNS_PER_SCAN = 600;
+	private static final int COLUMNS_PER_SCAN = 1_200;
+	private static final int HEAVY_AT_SIGHT = 1_500;
+	private static final long SCATTER = 1_000_003L;
+	private static final int ROUNDS_BEFORE_RETRY = 2;
 	private static final int MAX_PENDING = 512;
 	/** Deeper than this below where it should be, a hollow is a ravine: too much for shovels. */
-	private static final int MAX_FILL = 64;
+	private static final int MAX_FILL = 128;
 	/** How far to every side of the spot a citizen is sent to one turn of work reaches. */
 	private static final int WORK_REACH = 3;
 	/** How far down through trees, lamps and plants the ground itself is looked for. */
@@ -55,8 +58,13 @@ public final class Landscaper {
 
 	private static final class Ground {
 		int cursor;
+		/** Columns found out of level so far in this look over the whole ground. */
+		int seenUneven;
 		final List<BlockPos> uneven = new ArrayList<>();
 		final Set<Long> noted = new HashSet<>();
+		/** Columns that were worked on and are still not level: something stands in the way. Left alone for a while. */
+		final Set<Long> stuck = new HashSet<>();
+		int rounds;
 	}
 
 	private final Map<SettlementId, Ground> grounds = new HashMap<>();
@@ -65,27 +73,56 @@ public final class Landscaper {
 		return ((long) x << 32) ^ (z & 0xFFFFFFFFL);
 	}
 
-	/** Looks over the next patch of a settlement's ground and notes where it is not level. */
+	/**
+	 * Looks over some more of a settlement's ground and notes where it is not level.
+	 *
+	 * <p>The ground is not gone over row by row. A city's ground is far wider than the part of
+	 * the world the game is running, and a list filled from one edge sends every leveller to that
+	 * edge, a long walk from anywhere, while the hill beside them stands. Columns are taken in a
+	 * scattered order instead, so the list is always a sample of the whole of it and everyone
+	 * finds work near where they are. Ground that is loaded but too far off for the game to run
+	 * anyone there is on the list too: it is levelled from afar (see LandscapeGoal).
+	 */
 	void scan(ServerLevel level, Settlement settlement) {
 		Ground ground = grounds.computeIfAbsent(settlement.id(), _ -> new Ground());
-		if (ground.uneven.size() >= MAX_PENDING) {
-			settlement.setGroundWork(true);
-			return;
-		}
 		int[] bounds = settlement.groundBounds();
 		int west = bounds[0] - VERGE;
 		int north = bounds[1] - VERGE;
 		int width = bounds[2] - bounds[0] + 1 + 2 * VERGE;
-		int depth = bounds[3] - bounds[1] + 1 + 2 * VERGE;
-		for (int i = 0; i < COLUMNS_PER_SCAN && ground.uneven.size() < MAX_PENDING; i++) {
-			int index = ground.cursor % (width * depth);
-			ground.cursor = (index + 1) % (width * depth);
+		int columns = width * (bounds[3] - bounds[1] + 1 + 2 * VERGE);
+		for (int i = 0; i < COLUMNS_PER_SCAN; i++) {
+			// A stride by a prime larger than the count visits every column once before any twice.
+			int index = (int) ((long) ground.cursor * SCATTER % columns);
 			int x = west + index % width;
 			int z = north + index / width;
-			BlockPos top = unevenAt(level, settlement, x, z);
-			if (top != null && ground.noted.add(key(x, z))) {
-				ground.uneven.add(top);
+			BlockPos top = level.hasChunk(x >> 4, z >> 4) && !ground.stuck.contains(key(x, z)) ? unevenAt(level, settlement, x, z) : null;
+			if (top != null) {
+				ground.seenUneven++;
+				if (ground.noted.add(key(x, z))) {
+					if (ground.uneven.size() < MAX_PENDING) {
+						ground.uneven.add(top);
+					} else {
+						// A full list gives up an old spot for the new one, so that it does not go
+						// stale: what is left on it longest is what nobody was near.
+						BlockPos old = ground.uneven.set(level.getRandom().nextInt(MAX_PENDING), top);
+						ground.noted.remove(key(old.getX(), old.getZ()));
+					}
+				}
 			}
+			if (++ground.cursor >= columns) {
+				// Once round: how much there was to do in all is how many hands it wants.
+				settlement.setGroundBacklog(ground.seenUneven);
+				ground.cursor = 0;
+				ground.seenUneven = 0;
+				// What would not be levelled is tried again after a while: whatever was in the way may be gone.
+				if (++ground.rounds % ROUNDS_BEFORE_RETRY == 0) {
+					ground.stuck.clear();
+				}
+			}
+		}
+		// Enough has turned up already to call it heavy without waiting for the round to end.
+		if (ground.seenUneven >= HEAVY_AT_SIGHT) {
+			settlement.setGroundBacklog(ground.seenUneven);
 		}
 		// The job board hires levellers on this word.
 		settlement.setGroundWork(!ground.uneven.isEmpty());
@@ -101,14 +138,14 @@ public final class Landscaper {
 		int[] result = {0, 0, Integer.MAX_VALUE, Integer.MIN_VALUE};
 		for (int x = bounds[0]; x <= bounds[2]; x++) {
 			for (int z = bounds[1]; z <= bounds[3]; z++) {
-				int surface = level.hasChunk(x >> 4, z >> 4) ? surface(level, x, z) : NONE;
+				int surface = level.hasChunk(x >> 4, z >> 4) ? surface(level, settlement, x, z) : NONE;
 				if (surface == NONE || keptOpen(settlement, x, z)) {
 					continue;
 				}
 				result[0]++;
 				result[2] = Math.min(result[2], surface);
 				result[3] = Math.max(result[3], surface);
-				if (target(settlement, x, z, surface) != surface) {
+				if (goal(level, settlement, x, z, surface) != surface || awash(level, settlement, x, z)) {
 					result[1]++;
 				}
 			}
@@ -116,7 +153,88 @@ public final class Landscaper {
 		return result;
 	}
 
+	/** Where the waiting ground lies, for the reports: its bounds, and how far the nearest and the middle spot are from a point. */
+	String pendingSpread(Settlement settlement, BlockPos from) {
+		Ground ground = grounds.get(settlement.id());
+		if (ground == null || ground.uneven.isEmpty()) {
+			return "";
+		}
+		int[] box = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE};
+		List<Integer> away = new ArrayList<>();
+		for (BlockPos pos : ground.uneven) {
+			box[0] = Math.min(box[0], pos.getX());
+			box[1] = Math.min(box[1], pos.getZ());
+			box[2] = Math.max(box[2], pos.getX());
+			box[3] = Math.max(box[3], pos.getZ());
+			away.add((int) Math.sqrt(pos.distSqr(from)));
+		}
+		away.sort(null);
+		return "x " + box[0] + ".." + box[2] + " z " + box[1] + ".." + box[3] + " from player nearest " + away.getFirst() + " median " + away.get(away.size() / 2);
+	}
+
 	/** How much ground is known to be waiting, for the reports. */
+	/** Why each column that is still off its level is so, for the reports: each reason and how many. */
+	Map<String, Integer> unevenReasons(ServerLevel level, Settlement settlement) {
+		Map<String, Integer> reasons = new java.util.TreeMap<>();
+		Ground ground = grounds.get(settlement.id());
+		int[] bounds = settlement.groundBounds();
+		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+		for (int x = bounds[0] - VERGE; x <= bounds[2] + VERGE; x++) {
+			for (int z = bounds[1] - VERGE; z <= bounds[3] + VERGE; z++) {
+				if (!level.hasChunk(x >> 4, z >> 4)) {
+					continue;
+				}
+				int surface = surface(level, settlement, x, z);
+				if (surface == NONE) {
+					continue;
+				}
+				int target = goal(level, settlement, x, z, surface);
+				if (target == surface && !awash(level, settlement, x, z)) {
+					continue;
+				}
+				String why;
+				if (target == surface) {
+					why = "water or lava lying on it";
+				} else if (target < surface) {
+					why = "cut";
+					for (int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z); y > target; y--) {
+						BlockState state = level.getBlockState(cursor.set(x, y, z));
+						if (!state.isAir() && !state.typeHolder().is(BlockTags.LOGS) && !WorkSites.isNatural(state) && !Lamplighter.isLampPart(state)
+								&& !state.is(Blocks.DIRT_PATH)) {
+							why = "cut stopped by " + state.getBlock().getName().getString();
+							break;
+						}
+					}
+				} else if (target - surface > MAX_FILL) {
+					why = "too deep to fill";
+				} else {
+					why = "fill";
+					for (int y = surface + 1; y <= target; y++) {
+						BlockState state = level.getBlockState(cursor.set(x, y, z));
+						if (!state.isAir() && !WorkSites.isNatural(state) && !Lamplighter.isLampPart(state)
+								&& !state.typeHolder().is(BlockTags.LOGS) && !state.typeHolder().is(BlockTags.LEAVES)) {
+							why = "fill stopped by " + state.getBlock().getName().getString();
+							break;
+						}
+					}
+					if (why.equals("fill") && !level.getEntitiesOfClass(LivingEntity.class, new AABB(x, surface + 1, z, x + 1, target + 2, z + 1), Landscaper::notToBeBuried).isEmpty()) {
+						why = "fill stopped by a creature";
+					}
+				}
+				if (ground != null && ground.stuck.contains(key(x, z))) {
+					why += " (set aside)";
+				}
+				reasons.merge(why, 1, Integer::sum);
+			}
+		}
+		return reasons;
+	}
+
+	int stuck(Settlement settlement) {
+		Ground ground = grounds.get(settlement.id());
+		return ground == null ? 0 : ground.stuck.size();
+	}
+
 	int pending(Settlement settlement) {
 		Ground ground = grounds.get(settlement.id());
 		return ground == null ? 0 : ground.uneven.size();
@@ -157,6 +275,10 @@ public final class Landscaper {
 		for (int dx = -WORK_REACH; dx <= WORK_REACH; dx++) {
 			for (int dz = -WORK_REACH; dz <= WORK_REACH; dz++) {
 				rock += gradeColumn(level, settlement, spot.getX() + dx, spot.getZ() + dz);
+				// Worked on and still not level: it is not offered again and again to no purpose.
+				if (ground != null && unevenAt(level, settlement, spot.getX() + dx, spot.getZ() + dz) != null) {
+					ground.stuck.add(key(spot.getX() + dx, spot.getZ() + dz));
+				}
 				if (ground != null && ground.noted.remove(key(spot.getX() + dx, spot.getZ() + dz))) {
 					int x = spot.getX() + dx;
 					int z = spot.getZ() + dz;
@@ -179,12 +301,16 @@ public final class Landscaper {
 		if (!level.hasChunk(x >> 4, z >> 4)) {
 			return 0;
 		}
-		int surface = surface(level, x, z);
+		int surface = surface(level, settlement, x, z);
 		if (surface == NONE) {
 			return 0;
 		}
-		int target = target(settlement, x, z, surface);
+		int target = goal(level, settlement, x, z, surface);
 		if (target == surface) {
+			// Level ground with water or lava run out over it from a spring: that is taken off.
+			if (awash(level, settlement, x, z)) {
+				drainPool(level, settlement, new BlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1, z));
+			}
 			return 0;
 		}
 		BlockState cover = (onStreet(settlement, x, z) ? Blocks.DIRT_PATH : Blocks.GRASS_BLOCK).defaultBlockState();
@@ -201,11 +327,17 @@ public final class Landscaper {
 					WorkSites.fellTree(level, cursor.immutable());
 					continue;
 				}
-				if (!WorkSites.isNatural(state) && !Lamplighter.isLampPart(state)) {
+				// A street laid over a bank comes down with the bank, and is laid again at the bottom.
+				if (!WorkSites.isNatural(state) && !Lamplighter.isLampPart(state) && !state.is(Blocks.DIRT_PATH)) {
 					return rock; // something of somebody's stands here: leave the column be
 				}
 				if (state.typeHolder().is(BlockTags.BASE_STONE_OVERWORLD)) {
 					rock++;
+				}
+				// Breaking water or lava leaves it where it was: it is taken out instead.
+				if (!state.getFluidState().isEmpty()) {
+					level.setBlockAndUpdate(cursor, Blocks.AIR.defaultBlockState());
+					continue;
 				}
 				level.destroyBlock(cursor, false);
 			}
@@ -216,12 +348,22 @@ public final class Landscaper {
 			return rock;
 		}
 		if (target - surface > MAX_FILL
-				|| !level.getEntitiesOfClass(LivingEntity.class, new AABB(x, surface + 1, z, x + 1, target + 2, z + 1)).isEmpty()) {
+				|| !level.getEntitiesOfClass(LivingEntity.class, new AABB(x, surface + 1, z, x + 1, target + 2, z + 1), Landscaper::notToBeBuried).isEmpty()) {
 			return 0;
 		}
 		for (int y = surface + 1; y <= target; y++) {
 			BlockState state = level.getBlockState(cursor.set(x, y, z));
-			if (!state.isAir() && !state.canBeReplaced() && !Lamplighter.isLampPart(state)) {
+			// A tree standing in the hollow comes down first, and its leaves with it.
+			if (state.typeHolder().is(BlockTags.LOGS)) {
+				WorkSites.fellTree(level, cursor.immutable());
+				state = level.getBlockState(cursor);
+			}
+			if (state.typeHolder().is(BlockTags.LEAVES)) {
+				level.destroyBlock(cursor, false);
+				continue;
+			}
+			// Flowers, a lump of ore, a drift of snow: whatever the land itself left there is buried.
+			if (!state.isAir() && !WorkSites.isNatural(state) && !Lamplighter.isLampPart(state)) {
 				return 0;
 			}
 		}
@@ -239,26 +381,35 @@ public final class Landscaper {
 		if (!level.hasChunk(x >> 4, z >> 4)) {
 			return null;
 		}
-		int surface = surface(level, x, z);
+		int surface = surface(level, settlement, x, z);
 		if (surface == NONE) {
 			return null;
 		}
-		int target = target(settlement, x, z, surface);
-		return target == surface || target - surface > MAX_FILL ? null : new BlockPos(x, surface, z);
+		int target = goal(level, settlement, x, z, surface);
+		return (target == surface && !awash(level, settlement, x, z)) || target - surface > MAX_FILL ? null : new BlockPos(x, surface, z);
 	}
 
 	/**
 	 * Height of the ground block in a column, under whatever grows or stands lightly on it, or
 	 * {@link #NONE} if the column is water or has something built on it.
 	 */
-	private static int surface(ServerLevel level, int x, int z) {
+	private static int surface(ServerLevel level, Settlement settlement, int x, int z) {
 		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1, z);
+		// A pond, a flooded pit or a pool of lava on a walled settlement's ground is a hollow like
+		// any other, and is filled: its ground is its bed. That goes for all the ground it keeps
+		// level, the strip outside the wall too: water is not left standing against the wall's
+		// foot. Further out the land is not touched at all, so the river past the town stays.
+		boolean pond = settlement.wallPieces() > 0;
 		for (int down = 0; down < LOOK_DOWN; down++) {
 			BlockState state = level.getBlockState(cursor);
 			if (!state.getFluidState().isEmpty()) {
-				return NONE;
+				if (!pond) {
+					return NONE;
+				}
+				cursor.move(0, -1, 0);
+				continue;
 			}
-			if (WorkSites.isGround(state) || state.is(Blocks.DIRT_PATH)) {
+			if (WorkSites.isGround(state) || WorkSites.isOre(state) || state.is(Blocks.DIRT_PATH)) {
 				return cursor.getY();
 			}
 			if (!state.isAir() && !WorkSites.isNatural(state) && !state.typeHolder().is(BlockTags.LOGS) && !Lamplighter.isLampPart(state)) {
@@ -270,6 +421,75 @@ public final class Landscaper {
 	}
 
 	/** The height the ground in this column should have, given the height it has. */
+	/**
+	 * The height the ground in this column should have. As {@link #target}, but a column that
+	 * stands under water or lava is not left as a pool on the slope outside the wall: its bed is
+	 * brought all the way up, so no water lies against the wall's foot.
+	 */
+	private static int goal(ServerLevel level, Settlement settlement, int x, int z, int surface) {
+		int target = target(settlement, x, z, surface);
+		if (!managed(settlement, x, z)) {
+			return target;
+		}
+		BlockPos top = new BlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1, z);
+		return level.getFluidState(top).isEmpty() ? target : Math.max(target, target(settlement, x, z, settlement.grade()));
+	}
+
+	/** People are not buried under the fill; the fish in a pond that is being filled are. */
+	private static boolean notToBeBuried(LivingEntity entity) {
+		return entity instanceof net.minecraft.world.entity.player.Player || entity instanceof com.sunnatbek.villagerciv.mod.entity.CitizenEntity
+				|| entity instanceof net.minecraft.world.entity.npc.villager.AbstractVillager || entity instanceof net.minecraft.world.entity.animal.Animal && !entity.isInWater();
+	}
+
+	private static final int POOL_LIMIT = 8_192;
+
+	/**
+	 * Takes away a whole sheet of water or lava lying above the settlement's level, all of it at
+	 * once. Bailed out a block at a time, standing water closes over the gap again from the
+	 * blocks on either side, so nothing is gained; emptied in one go, with its springs, it is gone.
+	 * Water on ground the settlement does not keep (a field's channel, the land beyond the wall)
+	 * is not touched, and neither is anything at or below the level: that is filled with earth.
+	 */
+	private static void drainPool(ServerLevel level, Settlement settlement, BlockPos start) {
+		int grade = settlement.grade();
+		java.util.ArrayDeque<BlockPos> open = new java.util.ArrayDeque<>();
+		Set<BlockPos> pool = new HashSet<>();
+		open.add(start);
+		pool.add(start);
+		while (!open.isEmpty() && pool.size() < POOL_LIMIT) {
+			BlockPos pos = open.poll();
+			for (net.minecraft.core.Direction direction : net.minecraft.core.Direction.values()) {
+				BlockPos next = pos.relative(direction);
+				if (next.getY() > grade && !pool.contains(next) && level.hasChunk(next.getX() >> 4, next.getZ() >> 4)
+						&& level.getBlockState(next).getBlock() instanceof net.minecraft.world.level.block.LiquidBlock
+						&& managed(settlement, next.getX(), next.getZ())) {
+					pool.add(next);
+					open.add(next);
+				}
+			}
+		}
+		for (BlockPos pos : pool) {
+			if (pos.getY() > grade && level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.LiquidBlock) {
+				// Without telling the neighbours: they are all going too, and are not to flow in first.
+				level.setBlock(pos, Blocks.AIR.defaultBlockState(), net.minecraft.world.level.block.Block.UPDATE_CLIENTS);
+			}
+		}
+	}
+
+	/** Whether water or lava stands or runs on top of this column of ground the settlement keeps level. */
+	private static boolean awash(ServerLevel level, Settlement settlement, int x, int z) {
+		BlockPos top = new BlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1, z);
+		return level.getBlockState(top).getBlock() instanceof net.minecraft.world.level.block.LiquidBlock
+				&& settlement.wallPieces() > 0 && managed(settlement, x, z);
+	}
+
+	/** Whether this column is ground the settlement keeps level at all. */
+	private static boolean managed(Settlement settlement, int x, int z) {
+		int[] bounds = settlement.groundBounds();
+		int beyond = Math.max(Math.max(bounds[0] - x, x - bounds[2]), Math.max(bounds[1] - z, z - bounds[3]));
+		return beyond <= VERGE && !keptOpen(settlement, x, z);
+	}
+
 	private static int target(Settlement settlement, int x, int z, int surface) {
 		int[] bounds = settlement.groundBounds();
 		int beyond = Math.max(Math.max(bounds[0] - x, x - bounds[2]), Math.max(bounds[1] - z, z - bounds[3]));

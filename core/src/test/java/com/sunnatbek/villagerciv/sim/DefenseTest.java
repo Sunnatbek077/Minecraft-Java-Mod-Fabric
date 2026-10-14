@@ -260,6 +260,7 @@ class DefenseTest {
 		assertEquals(posted.size(), posted.stream().map(c -> c.post() * 10 + c.postPlace()).distinct().count(), "no two in one place");
 		long adults = settlement.size() - settlement.children();
 		assertTrue(settlement.guards() <= adults / 2, "never more than half of the grown citizens: " + settlement.guards() + " of " + adults);
+
 		long gates = settlement.buildings().stream().filter(b -> b.blueprint().equals(Fortification.GATE)).count();
 		if (settlement.guards() >= towers + gates) {
 			assertEquals(gates, posted.stream().filter(c -> settlement.building(c.post()).blueprint().equals(Fortification.GATE)).count(),
@@ -288,5 +289,16 @@ class DefenseTest {
 		headless.runTicks(Labor.CYCLE_TICKS * 2);
 		assertEquals(defenders, settlement.members().stream().filter(Citizen::isArmored).count(), "a suit for every defender");
 		assertTrue(settlement.ledger().onHand(Commodity.ORE) <= 5, "paid for in ore: " + settlement.ledger().onHand(Commodity.ORE) + " left");
+		// Hillsides to level: one to a tower, and most of the rest put down their arms.
+		int before = settlement.guards();
+		settlement.setGroundWork(true);
+		settlement.setGroundBacklog(5_000);
+		headless.runTicks(Labor.CYCLE_TICKS * 3);
+		assertTrue(settlement.guards() < before, "fewer under arms: " + settlement.guards() + " of " + before);
+		assertTrue(settlement.members().stream().filter(c -> c.post() != Citizen.NO_POST).count() >= towers, "the towers are still manned");
+		// And they take their places again when the ground is done.
+		settlement.setGroundBacklog(0);
+		headless.runTicks(Labor.CYCLE_TICKS * 3);
+		assertTrue(settlement.guards() >= before, "all of them again once the ground is level: " + settlement.guards());
 	}
 }

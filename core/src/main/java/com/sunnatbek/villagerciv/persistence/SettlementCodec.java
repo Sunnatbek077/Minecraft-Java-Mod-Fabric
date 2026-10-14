@@ -89,6 +89,7 @@ final class SettlementCodec {
 		json.addProperty("lastThreatTick", settlement.lastThreatTick());
 		json.addProperty("wallPieces", settlement.wallPieces());
 		json.addProperty("expansion", settlement.expansion());
+		json.addProperty("heavyGroundWork", settlement.hasHeavyGroundWork());
 		json.addProperty("wallShape", settlement.wallShape().name());
 		if (settlement.plannedShape() != null) {
 			json.addProperty("plannedShape", settlement.plannedShape().name());
@@ -266,6 +267,9 @@ final class SettlementCodec {
 							w.get("rotation").getAsInt(), w.get("sizeX").getAsInt(), w.get("sizeZ").getAsInt()));
 				}
 				settlement.setWallPlan(pieces, json.get("wallPieces").getAsInt());
+				if (json.has("heavyGroundWork")) {
+					settlement.setHeavyGroundWork(json.get("heavyGroundWork").getAsBoolean());
+				}
 				if (json.has("expansion")) {
 					settlement.setExpansion(json.get("expansion").getAsInt());
 				}

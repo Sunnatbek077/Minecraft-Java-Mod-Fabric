@@ -12,7 +12,7 @@ mkdir -p run-autotest/saves
 cp -R "run/saves/$WORLD" run-autotest/saves/AutoTest
 rm -f run-autotest/saves/AutoTest/session.lock
 [ -d run/config ] && mkdir -p run-autotest/config && cp -R run/config/. run-autotest/config/
-cat > run-autotest/options.txt <<'OPTIONS'
+cat > run-autotest/options.txt <<OPTIONS
 fullscreen:false
 pauseOnLostFocus:false
 onboardAccessibility:false
@@ -20,8 +20,8 @@ skipMultiplayerWarning:true
 tutorialStep:none
 narrator:0
 soundCategory_master:0.0
-renderDistance:6
-simulationDistance:8
+renderDistance:${RD:-6}
+simulationDistance:${SD:-8}
 maxFps:30
 overrideWidth:640
 overrideHeight:400

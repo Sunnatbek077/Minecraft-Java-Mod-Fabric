@@ -51,7 +51,8 @@ final class AutoTest {
 			run(server, "time set day");
 			// Wherever the world was saved from, the run is watched from above the first settlement:
 			// citizens have bodies, and the world is changed, only where a player is near.
-			for (Settlement settlement : simulation.state().settlements().all()) {
+			// STAY=true leaves the player where and as the world was saved, to see what its owner saw.
+			for (Settlement settlement : "true".equals(System.getenv("STAY")) ? java.util.List.<Settlement>of() : simulation.state().settlements().all()) {
 				run(server, "gamemode spectator @p");
 				run(server, "tp @p " + settlement.anchorX() + " " + (settlement.anchorY() + 30) + " " + settlement.anchorZ());
 				break;
@@ -375,9 +376,9 @@ final class AutoTest {
 					(b.category() == com.sunnatbek.villagerciv.build.Blueprint.Category.DEFENSE ? walls : houses).merge(b.y() - settlement.grade(), 1, Integer::sum);
 				}
 			}
-			VillagerCivMod.LOGGER.info("AUTOTEST   ground grade {} (centre {}) columns {} uneven {} lowest {} highest {} pending {} | houses by height {} walls by height {}",
+			VillagerCivMod.LOGGER.info("AUTOTEST   ground grade {} (centre {}) columns {} uneven {} lowest {} highest {} pending {} heavy {} | houses by height {} walls by height {}",
 					settlement.grade(), settlement.anchorY() - 1, land[0], land[1], land[2] - settlement.grade(), land[3] - settlement.grade(),
-					embodiment.landscaper().pending(settlement), houses, walls);
+					embodiment.landscaper().pending(settlement) + " " + embodiment.landscaper().pendingSpread(settlement, server.getPlayerList().getPlayers().getFirst().blockPosition()) + " stuck " + embodiment.landscaper().stuck(settlement) + " " + embodiment.landscaper().unevenReasons(level, settlement), settlement.hasHeavyGroundWork(), houses, walls);
 			VillagerCivMod.LOGGER.info("AUTOTEST   expansion {} streets {} wall {}/{} beyond-first-wall {} designs {}", settlement.expansion(),
 					settlement.streets().size(), settlement.wallPieces() - settlement.wallPlan().size(), settlement.wallPieces(), beyond, designs);
 		}

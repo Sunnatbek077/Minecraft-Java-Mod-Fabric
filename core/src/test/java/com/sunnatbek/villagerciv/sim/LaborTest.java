@@ -163,6 +163,31 @@ class LaborTest {
 	}
 
 	@Test
+	void hillsidesInsideTheBoundsCallManyHandsToLevelThem() {
+		Settlement settlement = settle(8, Surface.SOIL);
+		// Its store wants for nothing, so no hands are called to field, grove or mine.
+		for (Commodity commodity : List.of(Commodity.FOOD, Commodity.WOOD, Commodity.STONE)) {
+			settlement.ledger().add(commodity, 5_000);
+		}
+		settlement.setGroundWork(true);
+		settlement.setGroundBacklog(10);
+		headless.runTicks(Labor.CYCLE_TICKS * 3);
+		assertEquals(1, count(settlement, JobType.LEVEL), "a patch here and there is one leveller's work");
+
+		settlement.setGroundBacklog(5_000);
+		headless.runTicks(Labor.CYCLE_TICKS * 30);
+		assertEquals(2, count(settlement, JobType.LEVEL), "two hands in five when the ground is all hills");
+
+		// Still heavy while the list is being worked off, and over once it nearly is.
+		settlement.setGroundBacklog(800);
+		headless.runTicks(Labor.CYCLE_TICKS * 3);
+		assertEquals(2, count(settlement, JobType.LEVEL));
+		settlement.setGroundBacklog(10);
+		headless.runTicks(Labor.CYCLE_TICKS * 30);
+		assertEquals(1, count(settlement, JobType.LEVEL), "and they go back to their work when it is done");
+	}
+
+	@Test
 	void aPenTakesOneHerderWhoBringsInFood() {
 		Settlement settlement = settle(8, Surface.SOIL);
 		headless.runTicks(Labor.CYCLE_TICKS * 3);
@@ -183,6 +208,32 @@ class LaborTest {
 		settlement.ledger().add(Commodity.FOOD, 1_000);
 		headless.runTicks(Labor.CYCLE_TICKS * 6);
 		assertTrue(herder.workBank() > 0 || settlement.ledger().onHand(Commodity.FOOD) > food, "the herd brings food in");
+	}
+
+	@Test
+	void aLibrarianKeepsItsLecternWhateverElseCallsForHands() {
+		Settlement settlement = settle(8, Surface.SOIL);
+		for (Commodity commodity : List.of(Commodity.FOOD, Commodity.WOOD, Commodity.STONE)) {
+			settlement.ledger().add(commodity, 5_000);
+		}
+		Building library = TownPlan.freeSite(settlement, simulation.blueprints().get(Blueprint.LIBRARY).orElseThrow(), 48);
+		assertNotNull(library);
+		library.setStage(Building.Stage.COMPLETE);
+		settlement.setStudies(3);
+		headless.runTicks(Labor.CYCLE_TICKS * 3);
+		List<Citizen> librarians = settlement.members().stream().filter(c -> c.job() == JobType.STUDY).toList();
+		assertEquals(3, librarians.size(), "half of six hands may study");
+
+		// The stone runs out and the ground is all hills: everything that calls hands away at once,
+		// for longer than any lease lasts.
+		settlement.ledger().take(Commodity.STONE, settlement.ledger().onHand(Commodity.STONE));
+		settlement.ledger().take(Commodity.FOOD, settlement.ledger().onHand(Commodity.FOOD) - 20);
+		settlement.setGroundWork(true);
+		settlement.setGroundBacklog(5_000);
+		headless.runTicks(Labor.LEASE_TICKS + Labor.CYCLE_TICKS * 10);
+		assertTrue(librarians.stream().filter(settlement.members()::contains).allMatch(c -> c.job() == JobType.STUDY && !c.isGuard()),
+				"each is still a librarian");
+		assertEquals(librarians, settlement.members().stream().filter(c -> c.job() == JobType.STUDY).toList(), "and nobody else was put in their place");
 	}
 
 	private Settlement settlementWithFood(int food) {

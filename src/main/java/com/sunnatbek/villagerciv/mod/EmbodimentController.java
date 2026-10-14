@@ -20,6 +20,7 @@ import com.sunnatbek.villagerciv.sim.CitizenGroup;
 import com.sunnatbek.villagerciv.sim.Commodity;
 import com.sunnatbek.villagerciv.sim.Settlement;
 import com.sunnatbek.villagerciv.sim.Expedition;
+import com.sunnatbek.villagerciv.sim.JobType;
 import com.sunnatbek.villagerciv.sim.ExpeditionUpkeep;
 import com.sunnatbek.villagerciv.sim.Policy;
 import com.sunnatbek.villagerciv.sim.Request;
@@ -64,6 +65,8 @@ public final class EmbodimentController {
 	private static final double REJOIN_DISTANCE_SQR = 64.0 * 64.0;
 	/** A player this near a settlement's Town Center is in the settlement, wherever in it they stand. */
 	private static final double SETTLEMENT_DISTANCE_SQR = 110.0 * 110.0;
+	/** How far outside a settlement's ground a player still counts as being at it. */
+	private static final int BESIDE = 48;
 	/** A member left further behind than this rejoins next to the player instead of where it stood. */
 	private static final double LEFT_BEHIND_DISTANCE_SQR = 48.0 * 48.0;
 
@@ -253,6 +256,35 @@ public final class EmbodimentController {
 	}
 
 	/** The ground of each settlement is looked over, a patch at a time, for holes to fill. */
+	private static final long STATUS_LOG_TICKS = 1_200;
+	private long statusLoggedAt = -STATUS_LOG_TICKS;
+
+	/**
+	 * A line in the log once a minute on how the settlement's work is going, so that "they have
+	 * stopped working" can be answered from the log of the very game it was seen in.
+	 */
+	private void logStatus(ServerLevel level, Settlement settlement) {
+		if (gameTick() - statusLoggedAt < STATUS_LOG_TICKS) {
+			return;
+		}
+		statusLoggedAt = gameTick();
+		int levellers = 0;
+		int embodied = 0;
+		int working = 0;
+		for (Citizen citizen : settlement.members()) {
+			if (citizen.job() == JobType.LEVEL) {
+				levellers++;
+				embodied += citizen.isEmbodied() ? 1 : 0;
+				working += citizen.activity() == com.sunnatbek.villagerciv.sim.Activity.WORKING ? 1 : 0;
+			}
+		}
+		var telemetry = simulation.scheduler().telemetry();
+		VillagerCivMod.LOGGER.info("status {}: {} citizens, {} bodies | levellers {} (with a body {}, at work {}) | ground waiting {} stuck {} heavy {} | day {} | mod tick avg {} ms, throttle {}",
+				settlement.name(), settlement.size(), bodies.size(), levellers, embodied, working, landscaper.pending(settlement),
+				landscaper.stuck(settlement), settlement.hasHeavyGroundWork(), WorkDay.isDay(level),
+				String.format(Locale.ROOT, "%.2f", telemetry.averageTickNanos() / 1e6), telemetry.throttle());
+	}
+
 	void scanGround() {
 		ServerLevel level = server.overworld();
 		if (level.players().isEmpty()) {
@@ -274,6 +306,7 @@ public final class EmbodimentController {
 			settlement.setStudies(Librarians.all(level).size());
 			landscaper.scan(level, settlement);
 			lamplighter.scan(level, settlement);
+			logStatus(level, settlement);
 			for (WorkSite site : settlement.sites()) {
 				long key = site.id() * 31L + settlement.anchorX();
 				if (site.isExhausted() && !minesLookedAt.contains(key) && WorkSites.reopenIfWorkable(level, site)) {
@@ -385,19 +418,40 @@ public final class EmbodimentController {
 		// are there to be seen and at their work, not only those within a stone's throw of where
 		// the player happens to stand: the far side of the village would otherwise stand idle.
 		boolean wholePlace = false;
+		ServerPlayer visitor = null;
 		if (group instanceof Settlement settlement) {
+			// "In or beside it" goes by the ground the settlement keeps, which for a city is far
+			// more than a village's: a player at its wall is in it, however far the centre is.
+			int[] bounds = settlement.groundBounds();
 			for (int i = 0; i < players.size() && !wholePlace; i++) {
 				double dx = players.get(i).getX() - settlement.anchorX();
 				double dz = players.get(i).getZ() - settlement.anchorZ();
-				wholePlace = dx * dx + dz * dz <= SETTLEMENT_DISTANCE_SQR;
+				wholePlace = dx * dx + dz * dz <= SETTLEMENT_DISTANCE_SQR
+						|| (players.get(i).getX() >= bounds[0] - BESIDE && players.get(i).getX() <= bounds[2] + BESIDE
+						&& players.get(i).getZ() >= bounds[1] - BESIDE && players.get(i).getZ() <= bounds[3] + BESIDE);
+				visitor = wholePlace ? players.get(i) : null;
 			}
 		}
-		for (Citizen citizen : group.members()) {
+		// Bodies may run out before citizens do. Those whose work is only done by a body (the
+		// ground is not levelled, nor a wall raised in sight, by a record) are given theirs first.
+		List<Citizen> members = new ArrayList<>(group.members());
+		members.sort(java.util.Comparator.comparingInt(citizen -> citizen.job() == JobType.LEVEL || citizen.job() == JobType.BUILD ? 0 : 1));
+		for (Citizen citizen : members) {
 			if (spawnsLeft <= 0) {
 				return;
 			}
-			if (citizen.isEmbodied() || !level.isLoaded(BlockPos.containing(citizen.x(), citizen.y(), citizen.z()))) {
+			if (citizen.isEmbodied()) {
 				continue;
+			}
+			if (!level.isPositionEntityTicking(BlockPos.containing(citizen.x(), citizen.y(), citizen.z()))) {
+				// It is somewhere the game is not running: at home on the far side of a city, where
+				// it went to sleep. A body there would stand frozen. By night it is left to sleep
+				// unseen; by day it comes to where the game does run, to do its day's work in sight.
+				Vec3 spot = wholePlace && WorkDay.isDay(level) ? setDownSpot(level, (Settlement) group, visitor) : null;
+				if (spot == null) {
+					continue;
+				}
+				citizen.setPosition(spot.x, spot.y, spot.z);
 			}
 			if (wholePlace) {
 				materialize(level, group, citizen, citizen.x(), citizen.y(), citizen.z(), 0f);
@@ -541,16 +595,36 @@ public final class EmbodimentController {
 			return;
 		}
 		for (CitizenEntity body : stranded) {
-			Settlement settlement = (Settlement) body.group();
-			Citizen citizen = body.citizen();
+			// Its record stays where the body was (at home, if it went there to sleep). Come the
+			// day it is set down where the game runs; see embodyNearPlayers.
 			body.discard();
-			if (citizen != null) {
-				// Each to a spot of its own round the Town Center, not all on one block.
-				double angle = server.overworld().getRandom().nextDouble() * Math.PI * 2;
-				double away = 4.0 + server.overworld().getRandom().nextDouble() * 10.0;
-				citizen.setPosition(settlement.anchorX() + 0.5 + Math.cos(angle) * away, settlement.anchorY(), settlement.anchorZ() + 0.5 + Math.sin(angle) * away);
-			}
 		}
+	}
+
+	/**
+	 * A place to set down a citizen whose own place the game is not running: a spot of its own
+	 * round the Town Center, not all on one block; or, in a city so wide that the centre is out
+	 * of reach as well, a spot near the player who is there.
+	 *
+	 * @return the spot, or null if none was found this time
+	 */
+	private Vec3 setDownSpot(ServerLevel level, Settlement settlement, ServerPlayer visitor) {
+		double angle = level.getRandom().nextDouble() * Math.PI * 2;
+		BlockPos centre = new BlockPos(settlement.anchorX(), settlement.anchorY(), settlement.anchorZ());
+		if (level.isPositionEntityTicking(centre)) {
+			double away = 4.0 + level.getRandom().nextDouble() * 10.0;
+			return new Vec3(centre.getX() + 0.5 + Math.cos(angle) * away, centre.getY(), centre.getZ() + 0.5 + Math.sin(angle) * away);
+		}
+		if (visitor == null) {
+			return null;
+		}
+		double away = 8.0 + level.getRandom().nextDouble() * 16.0;
+		int x = net.minecraft.util.Mth.floor(visitor.getX() + Math.cos(angle) * away);
+		int z = net.minecraft.util.Mth.floor(visitor.getZ() + Math.sin(angle) * away);
+		BlockPos feet = new BlockPos(x, level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
+		// On open ground only: not on somebody's roof.
+		return settlement.withinWalls(x, z) && canStandAt(level, feet) && WorkSites.isGround(level.getBlockState(feet.below()))
+				? new Vec3(x + 0.5, feet.getY(), z + 0.5) : null;
 	}
 
 	/** Called for every removal of a body, whatever the reason: the record takes over. */
@@ -573,6 +647,8 @@ public final class EmbodimentController {
 		for (Citizen member : group.members()) {
 			rolesBefore.put(member.id(), member.role());
 		}
+		// What killed a citizen, and where, is worth knowing afterwards.
+		VillagerCivMod.LOGGER.info("{} died of {} at {}", citizen.name(), source.getMsgId(), body.blockPosition().toShortString());
 		bodies.remove(citizen.id());
 		citizen.setEmbodied(false);
 		simulation.citizenDied(group, citizen.id());

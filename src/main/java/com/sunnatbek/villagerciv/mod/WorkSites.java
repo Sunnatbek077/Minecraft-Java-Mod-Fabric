@@ -879,7 +879,7 @@ public final class WorkSites {
 		return state.typeHolder().is(BlockTags.BASE_STONE_OVERWORLD) || state.is(Blocks.COBBLESTONE);
 	}
 
-	private static boolean isOre(BlockState state) {
+	static boolean isOre(BlockState state) {
 		return state.typeHolder().unwrapKey().map(key -> key.identifier().getPath().endsWith("_ore")).orElse(false);
 	}
 

@@ -107,7 +107,9 @@ final class LandscapeGoal extends Goal {
 		double dx = hole.getX() + 0.5 - entity.getX();
 		double dz = hole.getZ() + 0.5 - entity.getZ();
 		double reach = Math.abs(hole.getY() + 1 - entity.getY()) > RIM_HEIGHT ? REACH_FROM_THE_RIM : REACH;
-		if (dx * dx + dz * dz <= reach * reach || travelled > TRAVEL_TIMEOUT_TICKS) {
+		// Ground out where the game runs nobody is not walked to at all: a body there would stand
+		// frozen. It is seen to from here, as work nobody watches is.
+		if (dx * dx + dz * dz <= reach * reach || travelled > TRAVEL_TIMEOUT_TICKS || !level.isPositionEntityTicking(hole)) {
 			entity.getNavigation().stop();
 			entity.citizen().setActivity(Activity.WORKING);
 			entity.getLookControl().setLookAt(hole.getX() + 0.5, hole.getY() + 1, hole.getZ() + 0.5);

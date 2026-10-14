@@ -155,9 +155,11 @@ public final class Defense {
 
 	/** How many guards a full watch on the wall is: two to a tower and one to a gate, and never more than a third of the grown citizens. */
 	private static int fullWatch(Settlement settlement, List<int[]> posts) {
+		// With hillsides to level, one to a tower will do: the rest take up shovels.
+		int perTower = standsDown(settlement) ? 0 : 1;
 		int watch = 0;
 		for (int[] post : posts) {
-			if (post[1] <= 1) {
+			if (post[1] <= perTower) {
 				watch++;
 			}
 		}
@@ -176,7 +178,19 @@ public final class Defense {
 		// When the store is all but out of something, half the patrols put down their arms and
 		// help bring it in; the wall stays manned.
 		boolean dire = settlement.shortage(Commodity.FOOD) == 2 || settlement.shortage(Commodity.WOOD) == 2 || settlement.shortage(Commodity.STONE) == 2;
+		if (standsDown(settlement)) {
+			patrols /= 4;
+		}
 		return dire ? patrols / 2 : patrols;
+	}
+
+	/**
+	 * Whether most of the militia can be spared for other work: the settlement has a great deal
+	 * of ground to level. The towers and gates keep one guard each and a few walk the rounds;
+	 * the guards that danger itself calls for (see {@link #wantedGuards}) are not touched.
+	 */
+	private static boolean standsDown(Settlement settlement) {
+		return settlement.hasHeavyGroundWork();
 	}
 
 	/** Every place a guard can be posted to, as {building id, place on it}, in the order they are filled. */
@@ -289,7 +303,8 @@ public final class Defense {
 				if (guards >= wanted) {
 					break;
 				}
-				boolean eligible = !citizen.isGuard() && !citizen.isChild()
+				// Not the keepers of the enchantments: a librarian is never called from its lectern.
+				boolean eligible = !citizen.isGuard() && !citizen.isChild() && citizen.job() != JobType.STUDY
 						&& citizen.role() != Role.LEADER && citizen.role() != Role.GENERAL;
 				boolean fromHere = pass < 2 ? citizen.job() == null : pass < 4 ? citizen.job() == spare && spare != null : true;
 				if (eligible && fromHere && (pass % 2 == 1 || citizen.has(Trait.BRAVE))) {
