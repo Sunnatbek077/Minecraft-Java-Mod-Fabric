@@ -17,7 +17,8 @@ the detail you are about to change. Keep it up to date when the structure change
   with `ZipException` until restart). If something "suddenly stopped working", look for
   `ZipException` in `run/logs/latest.log` first, and always tell the owner to restart the game
   after you build.
-- Commit only when asked. Work happens on `stage-2-town-life`; `main` is the PR base.
+- Commit only when asked. Work happens on `main` (the only branch on GitHub). Commit messages and PRs
+  carry no `Co-Authored-By` or "Generated with" lines: the owner is to be the only contributor.
 - A settlement must meet its own needs. Never make it wait for the player to top up stock.
 
 ## Design rules (decided, do not reopen)
