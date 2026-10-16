@@ -388,4 +388,4 @@ no file.
 - Some crowding at shared spots remains.
 - Towns above the entity budget show only part of their people.
 - Not built yet: colonies and a second settlement, logistics between settlements, raids, the
-  Civilization AI, blueprint upgrades. Roadmap and history per phase are in `README.md`.
+  Civilization AI, blueprint upgrades. Roadmap and history per phase are in `docs/DEVELOPMENT.md`; `README.md` is the players' guide (keep it in step with the rules).

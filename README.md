@@ -1,143 +1,392 @@
 # Villager Civilization
 
-A Fabric mod for Minecraft 26.3 (Fabric Loader 0.19.5, Java 25). Recruit villagers, found a
-settlement, and watch it grow into a civilization that lives on its own — the player speeds it
-up but does not rule it. Singleplayer only.
+**Recruit villagers, found a settlement, and watch it grow on its own — from a camp of a few
+followers into a walled city, and at the end a castle floating over it.**
 
-The core idea: the civilization lives in an abstract **simulation model**; Minecraft entities
-are only a temporary projection of it near the player.
+Villager Civilization is a Fabric mod for Minecraft Java Edition. Your villagers are not workers
+you command: they are a people who decide for themselves. They pick their own jobs, build their
+own houses, mine, farm, guard their walls and raise their children. You are their **patron**: you
+lead them to a good place, hand them charters and plans, and help with goods when you want to.
+You never tell anyone what to do — and if you leave, the settlement goes on living without you.
 
-## Layout
+---
 
-| Path | What | Minecraft on classpath |
+## Contents
+
+1. [Requirements and installation](#requirements-and-installation)
+2. [Quick start](#quick-start)
+3. [Items and recipes](#items-and-recipes)
+4. [Your journey, step by step](#your-journey-step-by-step)
+5. [How a settlement lives](#how-a-settlement-lives)
+6. [Settlement stages](#settlement-stages)
+7. [Walls and expansion](#walls-and-expansion)
+8. [The castle](#the-castle)
+9. [Commands and settings](#commands-and-settings)
+10. [Good to know](#good-to-know)
+11. [FAQ](#faq)
+
+---
+
+## Requirements and installation
+
+| You need | Version |
+| --- | --- |
+| Minecraft Java Edition | **26.3** |
+| Fabric Loader | **0.19.5** or newer |
+| Fabric API | for 26.3 |
+| Java | **25** |
+
+1. Install Fabric Loader for Minecraft 26.3.
+2. Put **Fabric API** and **`villagerciv-<version>.jar`** into your `.minecraft/mods` folder.
+3. Start the game with the Fabric profile.
+
+The mod is made for **single-player**.
+
+> **Back up your worlds first.** The mod raises the height of the Overworld to **y = 607** (see
+> [The castle](#the-castle)). This applies to every world you open while the mod is installed.
+
+---
+
+## Quick start
+
+1. Craft a **Recruitment Scroll** and use it on a villager. Recruit at least **4** villagers.
+2. Feed your followers as you travel (use food on a follower).
+3. Craft a **Founding Charter** and use it on the ground where you want to live.
+4. Read your Leader's report and confirm. A **Town Center** block appears: your settlement exists.
+5. Give the settlement a **Development Plan** (use it on the Town Center).
+6. From now on, watch. Give wood, stone and food to the Town Center if you want them to grow faster.
+
+---
+
+## Items and recipes
+
+All recipes appear on the mod's own page in the crafting book.
+
+| Item | Recipe | What it does |
 | --- | --- | --- |
-| `core/` | Simulation core: scheduler, event bus, records, persistence, content registries | No |
-| `src/main/` | Platform integration: Fabric hooks, commands, config | Yes |
-| `src/client/` | Client-only code (screens, overlays) — from P1 on | Yes |
-
-`core` is a plain Java project, so the rule "the simulation never imports Minecraft" is
-enforced by the compiler, and its tests run in seconds without the game. It is shipped inside
-the mod jar.
-
-## Commands
+| **Recruitment Scroll** | 8 Emeralds around 1 Paper | Use on a villager to invite it to follow you. |
+| **Founding Charter** | Paper + Feather + Ink Sac + Emerald (shapeless) | Use on a block to propose that spot for a new settlement. |
+| **Blank Plan** | Book in the middle, 4 Paper on its sides | The sheet every plan and charter is made from. |
+| **Development Plan: Agrarian** | Blank Plan + Hay Bale | Food and people first. |
+| **Development Plan: Industry** | Blank Plan + Iron Pickaxe | Wood, stone and ore first. |
+| **Development Plan: Military** | Blank Plan + Iron Sword | Strength first; walls without waiting to be attacked. |
+| **Surveyor's Seal** | Gold Ingot top and bottom; Diamond, Compass, Emerald across the middle | Ingredient of the charters. |
+| **Expansion Charter** | Blank Plan + Surveyor's Seal | Lets a Town grow beyond its first wall (square wall). |
+| **Expansion Charter (Five-Sided Wall)** | Expansion Charter + 5 Stone Bricks | Same, with a five-sided wall. |
+| **Expansion Charter (Six-Sided Wall)** | Expansion Charter + 6 Stone Bricks | Same, with a six-sided wall. |
+| **Expansion Charter (Eight-Sided Wall)** | Expansion Charter + 8 Stone Bricks | Same, with an eight-sided wall. |
+| **Expansion Charter (Round Wall)** | Expansion Charter + Snowball | Same, with a round wall. |
+| **Grand Charter** | Blank Plan + 2 Surveyor's Seals + Diamond Block | Lets a City grow again, behind a great wall. |
+| **Build Castle for Octagonal Place** | Grand Charter in the middle, Diamond Blocks in the corners, Gold Blocks on the sides | Raises a castle over an eight-sided City. |
 
 ```
-./gradlew :core:test   # simulation tests, no Minecraft
-./gradlew build        # mod jar in build/libs
-./gradlew runClient    # launch the game with the mod
+Build Castle for Octagonal Place
+
+  [Diamond Block] [ Gold Block  ] [Diamond Block]
+  [ Gold Block  ] [Grand Charter] [ Gold Block  ]
+  [Diamond Block] [ Gold Block  ] [Diamond Block]
 ```
 
-Items: Recruitment Scroll, Founding Charter, Blank Plan and the three Development Plans (all craftable).
+---
 
-In game (operators): `/villagerciv status`, `/villagerciv preset <low|medium|high>`, `/villagerciv danger <on|off>`
-(whether monsters hunt citizens; off by default),
-`/villagerciv debug create <name> | list | expeditions | settlements | export`.
+## Your journey, step by step
 
-## Testing
+### 1. Recruiting
 
-- `./gradlew test` runs the core's headless tests (no Minecraft involved).
-- `tools/autotest.sh [ticks] [world]` checks the mod in the real game without anyone at the keyboard: it copies a
-  saved world into `run-autotest/`, opens it, fast-forwards the given number of ticks (a 24000-tick day takes about
-  four and a half minutes), and prints a report of every settlement at intervals: stock, jobs, what each citizen
-  is doing, the state of the mines, and what is in the storehouse and the home chests. See `AutoTest.java`.
+Use a **Recruitment Scroll** on a villager. A screen shows who it is and what it would say;
+confirm to make the offer. The villager joins your **expedition** and follows you.
 
-## Roadmap
+- An expedition holds up to **8** villagers.
+- Each villager takes a **role** of its own (Leader, General, Farmer, Builder, Miner and so on)
+  based on its old profession. You choose who joins, never who does what.
+- A villager asked on the land of your own settlement joins that settlement directly.
 
-MVP = P0–P6: one settlement, 6 founders, up to ~30 citizens, alive without the player.
+### 2. Travelling
 
-- [x] **P0 Foundations** — scheduler with tick budget, adaptive throttling and circuit breaker;
-  queued event bus; dirty-only atomic saves with schema migrations; content registry; telemetry;
-  quality presets; headless harness. *Still open: on-screen debug overlay, GameTest setup, CI.*
-- [x] **P1 Citizen & Recruitment** — citizen and expedition records, Recruitment Scroll (8 emeralds
-  around paper), offer screen, refusal with cooldown, self-assigned roles, Citizen entity that is
-  never saved with chunks, formation follow with catch-up teleport, camp on logout / death /
-  dimension change, shared food supply, loyalty and desertion, the General fights while the others
-  flee, expedition screen with disband. *Still open:* entity budget (comes with P5), refusal
-  cooldown is not saved across restarts.
-- [x] **P2 Founding & Settlement Core** — Founding Charter, hard checks, site survey (snapshot over
-  ticks + worker-thread analysis) with the Leader's report, Town Center block, settlement record,
-  territory claim with a spatial index, plot map, ledger with reservations, expedition supplies
-  moved into the ledger, giving goods through the Town Center (credited to the player), settlement
-  screen. *Still open:* initial zoning (comes with the street layout in P4), stockpile capacity (comes with the Storage building in P4).
-- [ ] **P3 Labor & Production** — *done:* work sites picked from the plot map (field, grove, mine),
-  job board with quotas, trade affinity and leases, work acted out in the world (level the
-  ground, dig a well, till, sow, harvest; plant and fell trees; cut a stair mine with galleries off each level, following exposed ore veins), hauling to the chest by one's own bed (cottages have one per bed) or to the
-  Town Center, flat-rate production while nobody is near, settlement hunger, night rest, rationed
-  path searches. *Still open:* path cache, per-citizen hunger and rest meters, in-game 3-day run.
-- [ ] **P4 Blueprint Construction** — *done:* text blueprints (`core/src/main/resources/villagerciv/
-  blueprints`), a street-and-lot town plan (streets grow from the Town Center and branch;
-  buildings take random free lots along them, facing the street), construction as one ordered
-  list of steps (pave, level the footprint, blocks bottom-up, fittings last), materials reserved
-  in the ledger, builders who raise it block by block, building on while nobody is near with the
-  world caught up afterwards (the deferred edit queue), and repair of broken blocks. Citizens
-  are given beds, go home at night through doors that close behind them, and sleep in their own beds. First
-  designs: hut, cottage, storehouse, and ten more houses of different sizes and materials (birch cabin,
-  stone croft, longhouse, timber house, tower house, brick house, mossy lodge, weaver's house, manor, deepslate
-  hall; drawn by `tools/gen_houses.py`, each with a chest per bed). Ten finer houses for villages and up
-  (`tools/gen_fine_houses.py`, `min_stage` 2): timber-framed, with a porch, window boxes with flowers, a hedge, rugs,
-  a kitchen corner and a table, and for six of them an upper storey jettied over the door, reached by a stair,
-  with books, a lectern and decorated pots. A settlement only picks designs it can pay for. `/villagerciv debug
-  showcase [design]` sets the house designs down in a row for a look. The wall is a second project built alongside
-  the ordinary one. Main storehouse: a 25x25 lot is set aside beside the Town Center at founding and the
-  building grows on it with the stage (hall, wings, walled yard; `tools/gen_store.py`). Its chests mirror the
-  ledger both ways while a player is near; workers fill the chest by their bed and carry it over in the evening. Where no street lot
-  fits it, the storehouse takes the free square nearest the Town Center (an eighth of it may be rough ground). Lots are
-  levelled whatever it takes (banks cut 10 high, pits filled 16 deep, trees felled), and citizens with spare time fill
-  holes in the settlement's ground layer by layer, leaving mine entrances, fields, groves and streets alone. A settlement with no such
-  square left builds the hall alone (`great_store_0`, 13x15), which is never enlarged. Levellers are a job of their own
-  (one per ten workers while there are holes to fill); anyone else helps in spare time. A walled settlement keeps to the ground inside its wall: lots, streets and work sites
-  stop there, and when no lot is left it builds nothing more, gains no more people, and simply works on (the
-  settlement screen says so). The ring is drawn at least 44 blocks out, since it is all the room there will be. A stretch of wall is
-  built from the highest ground beside it and stands on a stone footing, so it runs level across a hollow (sunken
-  stretches of an older wall are raised). Each finished watchtower is manned by a guard with a crossbow; defenders
-  have a suit of iron made from 24 ore each. Miners bring home what they actually found (coal, raw iron, copper,
-  gold, diamonds, emeralds, redstone, lapis), and it is kept as such in chests and storehouse. Citizens are drawn as villagers with a player's
-  build (own skin, `tools/GenCitizenTexture.java`), so the iron armour, swords, crossbows and work tools they carry
-  show on them as they would on a player. A settlement meets its own needs: it makes the
-  tools its workers lack (2 wood and 3 ore each, or stone for want of ore) and, from the Settlement stage on, opens
-  another field, grove or mine for whatever runs short once the existing ones are fully manned. Builders light the
-  place: wherever the ground inside the settlement gets less than 9 block light, one of them puts up a lamp (a post
-  with a lantern, in three makes; 2 wood and 1 ore), and anyone idle helps. A miner brings home everything dug, not
-  only ore: cobble, deepslate, andesite and the other rocks, gravel and flint, earth, sand, clay. *Still open:* more designs (the catalogue is meant to
-  reach about 200: types × tiers × biome palettes), levelling streets, upgrades, a design
-  validator. Buildings are original designs, not vanilla village pieces; only their arrangement
-  follows vanilla villages.
-- [ ] **P5 Population & Settlement AI** — *done:* children (born where there is a spare bed, food
-  and morale; half rations, no work, grown in three days), housing built ahead of growth, morale
-  that feeds back into work speed, soft cap per stage, promotion from Founding Camp to Settlement
-  after holding its conditions for a day, entity budget, workers rebalanced when needs change.
-  *Still open:* utility-scored priorities in place of the fixed build order and labor fractions,
-  apprentices, immigration.
-- [ ] **P6 Resource Manager & Player Relations** — *done:* stock statuses with hysteresis, shortages
-  that first move workers and open more sites and only then become requests to the patron
-  (reasoned, partial, expiring, at most three), standing earned by how much a gift was wanted,
-  Development Plans (Agrarian, Industry, Military) that can be followed side by side, a plan's
-  cost applying only while it is the only one; promotion needing a plan. Newcomers: a settlement with
-  a plan, spare beds and full stores draws grown citizens, paid for from the store; promotion comes at 6 and 16
-  citizens, below the stage caps, so growth never waits at a full cap. Recruiting into a settlement: a villager asked on the
-  land of the player's own settlement joins it directly; followers move in by sneak-using the Town Center with empty hands. *Still open:* substitution and postponement steps of the response ladder,
-  rewards beyond standing, "finished N days early" feedback.
-- [ ] **P8 Defense & Military** — *done:* zombies and skeletons can hunt citizens (off by default, `/villagerciv danger on`), a threat level that
-  rises with attacks and fades in quiet days, a part-time militia sized by stage and threat,
-  guards and the General on night watch, a square palisade ring planned around everything the
-  settlement has (made-to-measure wall pieces, a gate with a door on each side, a watchtower on
-  each corner), built through the normal construction queue after beds and before growth; a
-  Military plan fortifies without waiting to be hurt. *Still open:* wall shapes other than a
-  square, using natural barriers, stone walls and upgrades, raids, guard posts on the towers.
-- [ ] **P9 Progression & Technology** — *done:* three trades with workshops of their own (`tools/gen_workshops.py`): a
-  Blacksmith in the Smithy (built at the Settlement stage; forged tools make work 1.75x instead of 1.5x faster, tools
-  and armour take a third less ore and are made three times as fast), a Mason in the Mason's Yard (Village; builders
-  work 1.3x faster) and a Merchant in the Market (Village; while something is short, sells 12 of what is plentiful
-  for 8 of it each review). All three are acted out at their bench, tool in hand. Village to Town at 40 citizens with
-  smith and mason at work; Town to City at 100 with a merchant. A settlement under half the size its stage took falls
-  back a stage after a day. A child is apprenticed to the trade with the most untaught hands in it. *Still open:*
-  blueprint upgrades, road network.
-- [ ] **P10 Expansion & Multi-Settlement** — *done:* the Expansion Charter (blank plan + Surveyor's Seal; the seal is
-  two gold ingots, a diamond, a compass and an emerald), given at
-  the Town Center of a Town: the land is surveyed out to 96 blocks and claimed, streets leave through the gates of
-  the first wall, fields, groves and mines may lie further out, and a walled settlement plans a second ring 88 blocks
-  out in stone (`rampart_N`, `stone_gate`, `stone_tower`), the first staying inside it. Public buildings follow (well,
-  tavern, chapel, fountain; `tools/gen_stage2.py`), each lifting morale. Builders reckon work on sites the game is not
-  running rather than walking into them. *Still open:* colonies (a town founding a second settlement), logistics
-  between settlements, districts, the Civilization AI.
-- [ ] P7 LOD & scale · P11 Trade · P12 Rival civilizations
+Your followers walk with you in a loose group and catch up if they fall behind.
+
+- **They eat.** Use food on a follower to feed the group (sneak to give the whole stack). Hungry
+  followers lose trust in you, and a follower who has lost all trust leaves.
+- **They camp** where you leave them when you log out, die or change dimension, and follow again
+  when you come back.
+- Use a follower with an empty hand to open the **expedition screen** (members, food, disband).
+- The **General** fights monsters; the others keep out of the way.
+
+### 3. Founding
+
+You need at least **4** followers. Use the **Founding Charter** on the ground where you want the
+settlement.
+
+- Your **Leader surveys the place** and reports how good it is (land, water, wood, stone, danger).
+  Some places are refused outright: water or anything that is not land, ground with no level spot
+  even for a camp, or land that already belongs to another settlement.
+- Confirm, and a **Town Center** block is set down. The land around it is claimed, and your
+  followers become its citizens. The food you carried goes into its store.
+
+### 4. Helping
+
+The **Town Center** is how you deal with the settlement:
+
+| You use on the Town Center | Result |
+| --- | --- |
+| Wood, stone, food, ore, tools | The whole stack is given to the settlement's store. |
+| A Development Plan | The Leader considers it and takes it up. |
+| A charter | The Leader considers it (see [Walls and expansion](#walls-and-expansion)). |
+| An empty hand | Opens the **settlement screen**: store, tools, citizens and what each is doing. |
+| An empty hand while sneaking | Followers still with you move into the settlement. |
+
+Using an empty hand on a citizen also opens the settlement screen.
+
+---
+
+## How a settlement lives
+
+The settlement runs itself. Nothing below needs your attention, but knowing it helps you help.
+
+### The store
+
+What a settlement owns is counted in five kinds: **food, wood, stone, ore and tools**. The chests of
+its storehouse show the store. Workers carry what they bring in to the chest by their bed, and in
+the evening to the storehouse. The store has no size limit.
+
+### Jobs
+
+Citizens choose their own work, by what is needed most and what they are good at:
+
+| Job | Work |
+| --- | --- |
+| Farmer | Fields: tilling, sowing, harvesting. Farmers come first when food runs low. |
+| Lumberjack | Groves: planting and felling trees. |
+| Miner | Stair mines that follow ore veins. Brings home ore and rock. |
+| Builder | Houses, workshops, walls; lamps in dark corners. |
+| Leveller | Keeps the ground flat (see below). |
+| Blacksmith | Works the Smithy (built at the Settlement stage): better, cheaper tools and armour. |
+| Mason | Works the Mason's Yard (Village): builders work faster. |
+| Merchant | Works the Market (Village): trades what is plentiful for what is short. |
+| Herder | Keeps one animal pen: cattle, sheep, pigs or chickens. |
+| Librarian | Keeps one enchantment at a lectern in the library. |
+| Guard | Stands on the wall's towers and gates, or patrols the streets. |
+
+When something runs short (food, wood or stone), citizens are **called away** from less urgent
+work to bring it in, and go back to their own work when the store is full again. Librarians are
+never called away.
+
+### Houses and growth
+
+- Builders build houses ahead of need. There are **81 house designs**, all different, from a
+  bamboo hut to a quartz manor. The settlement builds every design once, in a random order, before
+  it builds any design a second time.
+- **Children** are born when there are spare beds, enough food, good morale and a Development Plan.
+  They grow up in three days and take up a trade.
+- **Newcomers** arrive by themselves to a settlement that has a plan, spare beds and full stores.
+- Every citizen eats one meal a day. A settlement without food loses morale and, in the end, people.
+
+### Flat ground
+
+A settlement is built at one height. **Levellers** cut down hills and fill hollows across the whole
+walled area, and fill ponds, flooded pits and lava pools inside the wall. Fields, groves and mine
+entrances are left alone. After an expansion, when there is a lot of uneven ground, many more
+citizens become levellers and most guards put down their arms to help, until the ground is level.
+
+### Development Plans
+
+A plan is a direction, not an order. A settlement needs **at least one plan** to grow past the
+first stage. Plans stack: a settlement can follow all three. A plan followed alone has a small
+cost (specialising); following several makes up for each other's costs.
+
+| Plan | Leans towards |
+| --- | --- |
+| Agrarian | Better farming, more children |
+| Industry | Better mining and felling |
+| Military | A stronger General, steadier nerves, a wall without waiting to be attacked |
+
+### Requests
+
+Now and then a settlement **asks you** for something it is short of, with a reason. You may help in
+part or not at all; a request simply expires. Helping when it is really needed raises your standing.
+A settlement always tries to meet its own needs first.
+
+### Libraries and enchanted books
+
+A Town that has grown beyond its first wall builds a **library** (48 lecterns each, as many libraries
+as it needs) and keeps **one librarian for every enchantment in the game** (curses excepted).
+
+- Use a librarian with an empty hand: it tells you which enchantment it keeps and the price.
+- Use it **holding a Book**, with the emeralds in your inventory: it writes its enchantment into
+  the book **at the highest level**.
+- Price: **8 emeralds per level**, double for treasure enchantments (those an enchanting table
+  never gives, such as Mending).
+- **Sneak** and use any librarian to list who keeps what.
+
+### Animal pens
+
+Pens come with the first expansion. A herder brings the first pair in, breeds them, fetches animals
+that stray, and when the pen is full takes the surplus for **meat, leather and wool** for the store.
+
+### Guards and danger
+
+- By default monsters ignore citizens. Turn on real danger with `/villagerciv danger on`.
+- When citizens are attacked, the settlement's **threat** rises. It fades over quiet days.
+- Guards stand on the wall's towers and gates day and night, and as many again **patrol** inside the
+  town with swords and crossbows. Patrols know of every monster on the settlement's land.
+- Guards get armour made from the store's ore.
+
+---
+
+## Settlement stages
+
+A settlement rises a stage when it meets the conditions below and **keeps meeting them for a quarter
+of a day**, with a bed for everyone. A settlement that falls under half the size its stage required
+falls back a stage after a day.
+
+| Stage | Citizens | Also needs |
+| --- | --- | --- |
+| Founding Camp | — | (the start) |
+| Settlement | 6 | a Development Plan, a storehouse, a field, 3 days of food |
+| Village | 16 | 5 days of food, morale 60 or more |
+| Town | 40 | the above, and a **blacksmith** and a **mason** at work |
+| City | 100 | the above, and a **merchant** at work |
+
+---
+
+## Walls and expansion
+
+### The first wall
+
+A settlement builds a **wooden palisade** with gates and watchtowers once it has been attacked
+enough, or at once if it follows the **Military** plan. A walled settlement builds only inside its
+wall. When there is no room left, it stops growing and simply lives on — until you give it more land.
+
+### Stage 2 — Expansion Charter
+
+Use an **Expansion Charter** on the Town Center of a **Town** (or a Village that is out of room):
+
+- The land is surveyed out to **96 blocks** and claimed.
+- A **stone wall** is planned **88 blocks** out, with **16 towers**. The old wall comes down when
+  the new one is finished, and its guards move to the new wall.
+- Animal pens, a library and public buildings (well, fountain, tavern, chapel) follow.
+- The plain charter gives a square wall. The shaped charters give a **five-, six- or eight-sided** or
+  a **round** wall.
+
+### Stage 3 — Grand Charter
+
+Use a **Grand Charter** on the Town Center of a **City** whose stage-2 wall is finished:
+
+- The land doubles, to **192 blocks**.
+- A **great wall**, four blocks thick with a walk along its top, is built **176 blocks** out, with
+  great towers and great gates.
+- The Grand Charter keeps the shape of the town's wall. A **shaped charter** given to a ready City
+  does the same and uses that shape. A shaped charter given to a Town that is not ready yet is
+  **kept**, and the city grows on it by itself the day it is ready.
+
+A settlement that has used its Grand Charter refuses another one: *"We have grown as far as any
+charter can take us."*
+
+---
+
+## The castle
+
+The last stage of a city's life.
+
+**Requirements:** a **City** with an **eight-sided** great wall that is **finished**.
+
+**How to start:** use **Build Castle for Octagonal Place** on the Town Center, or simply **throw it
+onto the Town Center** (press Q while looking at it).
+
+**What happens:**
+
+1. A **brigade of 24 builders** is formed from the city's workers.
+2. Hidden lights are placed over the whole town, so fields keep growing and no monster spawns in
+   the shadow that is coming.
+3. Every **great tower** of the wall is extended upwards into a **pillar** with a **spiral staircase**
+   inside.
+4. A **stone platform** is laid on the pillars, about **18 blocks above the tallest building** in
+   the city.
+5. The **castle** is built on the platform, course by course from the bottom up — about 2.7 million
+   blocks: a dark gothic citadel with terraces, a town of its own, towers and a cathedral whose spire
+   reaches past y = 470.
+
+**How long:** the whole castle is finished in **7 in-game days** (about 2 hours 20 minutes of play).
+It takes **1 stone for every 10 blocks** from the store while the store can spare it; if the store
+runs dry, the brigade builds on anyway so the castle is finished in time.
+
+**Getting up:** climb the spiral stairs inside any tower pillar; they come out on the platform.
+
+**Notes:**
+
+- Parts of the castle far from you are built when you come close; nothing is lost while you are away.
+- The brigade works on the castle by day and comes down to the town at night.
+- The castle needs the taller world (**y up to 607**) that the mod sets. If you see *"The sky is too
+  low here"*, the mod's data pack is not active in that world.
+
+---
+
+## Commands and settings
+
+All commands need operator rights (cheats on).
+
+| Command | Effect |
+| --- | --- |
+| `/villagerciv status` | The mod's load on your game, and how many settlements and expeditions exist. |
+| `/villagerciv preset <low\|medium\|high>` | How many citizens can be visible at once. |
+| `/villagerciv danger <on\|off>` | Whether monsters hunt citizens (off by default). |
+| `/villagerciv debug ...` | Tools for testing (`create`, `list`, `expeditions`, `settlements`, `export`, `showcase`). |
+
+Settings are kept in `config/villagerciv.json`. The preset is chosen from your computer on first
+launch:
+
+| Preset | Citizens visible at once |
+| --- | --- |
+| low | 240 |
+| medium | 340 |
+| high | 500 |
+
+---
+
+## Good to know
+
+- **Citizens live on when you cannot see them.** Away from you, their work is counted instead of
+  acted out; when you return, the world catches up with what was done. A citizen beyond the visible
+  limit is still there, only not shown.
+- **Your view distance matters.** The mod builds and levels only where the game has loaded the world.
+  A larger render distance lets more of a big city work in sight.
+- **Pausing stops everything.** In single-player the game pauses when you open the menu or switch
+  away from the window.
+- **Citizens sleep at night.** Work is done by day. If you set the time to day, they start again.
+- **Settlements keep to their wall.** A full walled settlement does not grow until you give it a
+  charter.
+- **One block, many uses.** Almost everything you do with a settlement goes through its Town Center.
+
+---
+
+## FAQ
+
+**My villager refused or vanished after recruiting.**
+Check that your expedition is not already full (8). A recruit far beyond the visible limit is not
+shown; try `/villagerciv preset medium`.
+
+**The levellers stopped working.**
+They work only by day and only on loaded ground. Look in `logs/latest.log` for lines starting with
+`status <town name>`: they show how many levellers there are, how many are at work and how much
+ground is waiting.
+
+**The Leader refuses my charter.**
+Read the message: the town may be too small, not yet a City, its wall not finished, or it has
+already used that charter.
+
+**The castle does not start.**
+It needs a City with a finished **eight-sided** great wall. Use the Eight-Sided Expansion Charter
+(or a Grand Charter on an eight-sided city) first.
+
+**Fields under the castle stopped growing.**
+They should not: the platform comes with hidden lights. If a spot is dark, the light there may have
+been taken by a building; the lamps builders put up cover such corners.
+
+---
+
+## Credits
+
+Made by **Sunnatbek**. The castle design comes from the *CastleForge* generator.
+All rights reserved.
+
+Developer notes and the project's history are in [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
