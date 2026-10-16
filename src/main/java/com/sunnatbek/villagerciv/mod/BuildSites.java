@@ -333,7 +333,7 @@ public final class BuildSites {
 			case 2 -> z = building.z() - 2;
 			default -> x = building.x() + building.sizeX() + 1;
 		}
-		return new BlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
+		return new BlockPos(x, com.sunnatbek.villagerciv.mod.Heights.top(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
 	}
 
 	/**
@@ -474,7 +474,7 @@ public final class BuildSites {
 		if (!level.hasChunk(step.x() >> 4, step.z() >> 4)) {
 			return Outcome.NOT_NOW;
 		}
-		BlockPos ground = new BlockPos(step.x(), level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, step.x(), step.z()) - 1, step.z());
+		BlockPos ground = new BlockPos(step.x(), com.sunnatbek.villagerciv.mod.Heights.top(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, step.x(), step.z()) - 1, step.z());
 		if (!WorkSites.isSoil(level.getBlockState(ground))) {
 			return Outcome.SKIPPED;
 		}

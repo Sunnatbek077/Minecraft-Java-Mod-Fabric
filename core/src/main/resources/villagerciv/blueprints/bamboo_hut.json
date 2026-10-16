@@ -1,0 +1,120 @@
+{
+	"id": "bamboo_hut",
+	"name": "Bamboo Hut",
+	"category": "housing",
+	"beds": 1,
+	"min_stage": 1,
+	"cost": {"wood": 120, "stone": 60},
+	"late": "DEFGKLQ",
+	"palette": {
+		"A": "minecraft:bamboo_mosaic",
+		"B": "minecraft:bamboo_block[axis=y]",
+		"C": "minecraft:bamboo_planks",
+		"D": "minecraft:lime_bed[facing=north,part=head]",
+		"E": "minecraft:lime_bed[facing=north,part=foot]",
+		"F": "minecraft:chest[facing=south]",
+		"G": "minecraft:bamboo_door[half=lower,facing=north,hinge=left]",
+		"H": "minecraft:barrel[facing=up]",
+		"I": "minecraft:composter",
+		"J": "minecraft:glass_pane",
+		"K": "minecraft:bamboo_door[half=upper,facing=north,hinge=left]",
+		"L": "minecraft:potted_bamboo",
+		"M": "minecraft:stripped_bamboo_block[axis=z]",
+		"N": "minecraft:stripped_bamboo_block[axis=x]",
+		"O": "minecraft:bamboo_mosaic_stairs[facing=east,half=bottom]",
+		"P": "minecraft:bamboo_mosaic_stairs[facing=west,half=bottom]",
+		"Q": "minecraft:lantern[hanging=true]",
+		"R": "minecraft:bamboo_slab[type=bottom]",
+		"S": "minecraft:dirt_path"
+	},
+	"layers": [
+		[
+			"       ",
+			" AAAAA ",
+			" AAAAA ",
+			" AAAAA ",
+			" AAAAA ",
+			" AAAAA ",
+			" AAAAA ",
+			"   S   ",
+			"   S   "
+		],
+		[
+			"       ",
+			" BCCCB ",
+			" CD.HC ",
+			" CE..C ",
+			" C..IC ",
+			" CF..C ",
+			" BCGCB ",
+			"       ",
+			"       "
+		],
+		[
+			"       ",
+			" BCJCB ",
+			" C..LC ",
+			" J...J ",
+			" C...C ",
+			" J...J ",
+			" BCKCB ",
+			"       ",
+			"       "
+		],
+		[
+			"       ",
+			" BNNNB ",
+			" M...M ",
+			" M...M ",
+			" M...M ",
+			" M...M ",
+			" BNNNB ",
+			"       ",
+			"       "
+		],
+		[
+			"O.....P",
+			"OCCCCCP",
+			"O.....P",
+			"O.....P",
+			"O.....P",
+			"O.....P",
+			"OCCCCCP",
+			"O.....P",
+			"       "
+		],
+		[
+			" O...P ",
+			" OCCCP ",
+			" O...P ",
+			" O...P ",
+			" O...P ",
+			" O...P ",
+			" OCCCP ",
+			" O...P ",
+			"       "
+		],
+		[
+			"  O.P  ",
+			"  OCP  ",
+			"  O.P  ",
+			"  OQP  ",
+			"  O.P  ",
+			"  O.P  ",
+			"  OCP  ",
+			"  O.P  ",
+			"       "
+		],
+		[
+			"   R   ",
+			"   R   ",
+			"   R   ",
+			"   R   ",
+			"   R   ",
+			"   R   ",
+			"   R   ",
+			"   R   ",
+			"       "
+		]
+	]
+}

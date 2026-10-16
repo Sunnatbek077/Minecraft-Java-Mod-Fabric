@@ -46,17 +46,17 @@ def mangrove_lodge():
 
 def jungle_longhouse():
     """Long and narrow, of jungle wood on mossy stone, with a jukebox by the door."""
-    g = G(9, 14, 10)
-    g.box(1, 7, 0, 0, 1, 11, m("jungle_planks"))
-    g.body(1, 7, 1, 11, 1, 3, m("jungle_planks"), post=log("jungle_log"), sill=m("mossy_cobblestone"), beam="stripped_jungle_log", win=2)
-    g.roof_z(0, 8, 0, 12, 4, "jungle", gable=m("jungle_planks"), gz=(1, 11), cap="bamboo")
-    g.door(4, 1, 11, "jungle")
+    g = G(9, 13, 10)
+    g.box(1, 7, 0, 0, 1, 10, m("jungle_planks"))
+    g.body(1, 7, 1, 10, 1, 3, m("jungle_planks"), post=log("jungle_log"), sill=m("mossy_cobblestone"), beam="stripped_jungle_log", win=2)
+    g.roof_z(0, 8, 0, 11, 4, "jungle", gable=m("jungle_planks"), gz=(1, 10), cap="bamboo")
+    g.door(4, 1, 10, "jungle")
     g.beds([2, 3, 5, 6], 1, 2, "green")
-    furnish(g, [(2, 10, "jukebox"), (6, 10, "barrel[facing=up]", "potted_jungle_sapling"), (2, 8, "crafting_table"), (6, 8, "composter")])
-    rug(g, 3, 5, 7, 9, "lime")
-    light(g, 4, 7, 3); light(g, 4, 7, 9)
-    path(g, 4, 12); path(g, 4, 13)
-    return g.result("jungle_longhouse", "Jungle Longhouse", 4, 77, 1)
+    furnish(g, [(2, 9, "jukebox"), (6, 9, "barrel[facing=up]", "potted_jungle_sapling"), (2, 7, "crafting_table"), (6, 7, "composter")])
+    rug(g, 3, 5, 6, 8, "lime")
+    light(g, 4, 7, 3); light(g, 4, 7, 8)
+    path(g, 4, 11); path(g, 4, 12)
+    return g.result("jungle_longhouse", "Jungle Longhouse", 4, 70, 1)
 
 def acacia_house():
     """Orange clay walls between acacia posts, under a stepped flat roof."""

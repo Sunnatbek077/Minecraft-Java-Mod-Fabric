@@ -272,6 +272,33 @@ class ConstructionTest {
 	}
 
 	@Test
+	void housesComeInAnOrderOfTheirOwnAndNoneTwiceBeforeTheRest() {
+		List<List<String>> orders = new java.util.ArrayList<>();
+		for (long seed : new long[] {515, 516}) {
+			HeadlessSimulation run = new HeadlessSimulation(seed);
+			for (long v = 0; run.simulation().expeditionOf(PLAYER).map(Expedition::size).orElse(0) < 8; v++) {
+				run.simulation().recruit(PLAYER, new UUID(2, v), "none", null, false, 0, 64, 0);
+			}
+			TerrainSnapshot snapshot = new TerrainSnapshot(0, 0, Founding.SURVEY_RADIUS);
+			for (int i = 0; i < snapshot.columnCount(); i++) {
+				snapshot.set(i, 64, Surface.SOIL);
+			}
+			Settlement settlement = run.simulation().found(PLAYER, 0, 64, 0, SiteSurvey.analyse(snapshot)).orElseThrow();
+			run.simulation().adoptPlan(settlement, Policy.AGRARIAN);
+			for (Commodity commodity : List.of(Commodity.FOOD, Commodity.WOOD, Commodity.STONE)) {
+				settlement.contribute(PLAYER, commodity, 100_000);
+			}
+			run.runDays(20);
+			List<String> houses = settlement.buildings().stream()
+					.filter(b -> b.category() == Blueprint.Category.HOUSING).map(Building::blueprint).toList();
+			assertTrue(houses.size() >= 4, "it built houses: " + houses);
+			assertEquals(houses.size(), new HashSet<>(houses).size(), "no design twice while others wait: " + houses);
+			orders.add(houses.subList(0, 4));
+		}
+		assertFalse(orders.get(0).equals(orders.get(1)), "and another town builds them in another order: " + orders);
+	}
+
+	@Test
 	void settlementBuildsShelterStoreAndABedForEveryoneWithoutThePlayer() {
 		Settlement settlement = settle(6);
 		settlement.contribute(PLAYER, Commodity.WOOD, 2000);

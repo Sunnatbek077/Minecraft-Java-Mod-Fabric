@@ -242,6 +242,36 @@ public final class Settlement implements SimRecord<SettlementId>, CitizenGroup {
 	 * How far the settlement has been allowed to grow beyond its first bounds: 0 until its
 	 * patron grants an Expansion Charter, 1 after. Saved.
 	 */
+	public static final int NO_CASTLE = Integer.MIN_VALUE;
+	private int castleY = NO_CASTLE;
+	private int castleBlocks;
+	private long castleWorked;
+
+	/** Whether a castle has been begun over the settlement (see {@link Castle}). */
+	public boolean hasCastle() {
+		return castleY != NO_CASTLE;
+	}
+
+	/** The height of the top of the castle's platform, or {@link #NO_CASTLE}. */
+	public int castleY() {
+		return castleY;
+	}
+
+	public int castleBlocks() {
+		return castleBlocks;
+	}
+
+	/** Ticks of work done on the castle so far. */
+	public long castleWorked() {
+		return castleWorked;
+	}
+
+	public void setCastle(int platformY, int blocks, long worked) {
+		castleY = platformY;
+		castleBlocks = blocks;
+		castleWorked = worked;
+	}
+
 	public int expansion() {
 		return expansion;
 	}

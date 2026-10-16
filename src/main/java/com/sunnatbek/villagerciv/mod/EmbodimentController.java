@@ -83,6 +83,7 @@ public final class EmbodimentController {
 	private final BuildSites buildSites;
 	private final Warehouse warehouse = new Warehouse(this);
 	private final Landscaper landscaper = new Landscaper();
+	private final CastleWorks castles;
 	private static final long RESURVEY_TICKS = 6_000;
 	private static final int MAX_DEMOLITIONS_PER_RUN = 2;
 	private final Map<com.sunnatbek.villagerciv.api.SettlementId, Long> resurveyedAt = new HashMap<>();
@@ -98,6 +99,7 @@ public final class EmbodimentController {
 	EmbodimentController(MinecraftServer server, Simulation simulation) {
 		this.server = server;
 		this.simulation = simulation;
+		this.castles = new CastleWorks(this, simulation);
 		this.buildSites = new BuildSites(simulation.blueprints());
 		buildSites.validateBlueprints();
 	}
@@ -247,6 +249,10 @@ public final class EmbodimentController {
 		return (int) intruders.getOrDefault(settlement.id(), List.of()).stream().filter(monster -> monster.isAlive()).count();
 	}
 
+	public CastleWorks castles() {
+		return castles;
+	}
+
 	public Landscaper landscaper() {
 		return landscaper;
 	}
@@ -306,6 +312,7 @@ public final class EmbodimentController {
 			settlement.setStudies(Librarians.all(level).size());
 			landscaper.scan(level, settlement);
 			lamplighter.scan(level, settlement);
+			castles.watchForCharters(level, settlement);
 			logStatus(level, settlement);
 			for (WorkSite site : settlement.sites()) {
 				long key = site.id() * 31L + settlement.anchorX();
@@ -621,7 +628,7 @@ public final class EmbodimentController {
 		double away = 8.0 + level.getRandom().nextDouble() * 16.0;
 		int x = net.minecraft.util.Mth.floor(visitor.getX() + Math.cos(angle) * away);
 		int z = net.minecraft.util.Mth.floor(visitor.getZ() + Math.sin(angle) * away);
-		BlockPos feet = new BlockPos(x, level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
+		BlockPos feet = new BlockPos(x, com.sunnatbek.villagerciv.mod.Heights.top(level, net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
 		// On open ground only: not on somebody's roof.
 		return settlement.withinWalls(x, z) && canStandAt(level, feet) && WorkSites.isGround(level.getBlockState(feet.below()))
 				? new Vec3(x + 0.5, feet.getY(), z + 0.5) : null;

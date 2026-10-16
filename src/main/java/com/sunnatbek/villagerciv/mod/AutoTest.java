@@ -92,6 +92,14 @@ final class AutoTest {
 							settlement.name(), settlement.expansion() + 1, settlement.wallShape(), settlement.wallPieces() - before, settlement.plots().buildableCount()));
 				}
 			}
+			if ("true".equals(System.getenv("CASTLE"))) {
+				// As if the patron had thrown the castle's charter onto the Town Center.
+				for (Settlement settlement : simulation.state().settlements().all()) {
+					boolean begun = embodiment.castles().propose(server.overworld(), null, settlement);
+					VillagerCivMod.LOGGER.info("AUTOTEST castle begun {}: platform y {}, {} blocks, world top {}", begun, settlement.castleY(),
+							settlement.castleBlocks(), server.overworld().getMaxY());
+				}
+			}
 			run(server, "tick sprint " + TICKS);
 			return;
 		}
@@ -292,6 +300,15 @@ final class AutoTest {
 				VillagerCivMod.LOGGER.info("AUTOTEST   rings (pieces/complete/in the world/condemned): wood {} stone {} great {} | still planned {} | shape {} stage {}",
 						java.util.Arrays.toString(rings[0]), java.util.Arrays.toString(rings[1]), java.util.Arrays.toString(rings[2]), settlement.wallPlan().size(),
 						settlement.wallShape(), settlement.expansion() + 1);
+			}
+			if (settlement.hasCastle()) {
+				long[] castle = embodiment.castles().progress(settlement);
+				ServerLevel overworld = server.overworld();
+				BlockPos high = new BlockPos(settlement.anchorX() + 200, 450, settlement.anchorZ());
+				VillagerCivMod.LOGGER.info("AUTOTEST   castle built {} of {} | in the world {} of {} | layer {} | brigade {} | stone {} | sky light at y450 {}",
+						com.sunnatbek.villagerciv.sim.Castle.built(settlement), settlement.castleBlocks(), castle[0], castle[1], castle[2],
+						settlement.members().stream().filter(c -> c.jobSite() == com.sunnatbek.villagerciv.sim.Labor.CASTLE && c.job() == com.sunnatbek.villagerciv.sim.JobType.BUILD).count(),
+						settlement.ledger().onHand(Commodity.STONE), overworld.hasChunkAt(high) ? overworld.getBrightness(net.minecraft.world.level.LightLayer.SKY, high) : -1);
 			}
 			VillagerCivMod.LOGGER.info("AUTOTEST   construction {} out-of-room {} planned-beds {}", com.sunnatbek.villagerciv.build.Construction.status(settlement, simulation.blueprints()), settlement.isOutOfRoom(), settlement.plannedBeds());
 			VillagerCivMod.LOGGER.info("AUTOTEST   buildings {} unfinished {} guards {} threat {}", settlement.buildings().size(), building, settlement.guards(),

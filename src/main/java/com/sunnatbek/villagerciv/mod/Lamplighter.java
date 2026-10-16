@@ -87,7 +87,7 @@ public final class Lamplighter {
 		if (!level.hasChunk(x >> 4, z >> 4) || !settlement.withinWalls(x, z) || Landscaper.keptOpen(settlement, x, z) || Landscaper.keptClear(settlement, x, z)) {
 			return; // posts and lanterns in front of houses, on gates and in yards are part of those
 		}
-		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
+		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos(x, com.sunnatbek.villagerciv.mod.Heights.top(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
 		// Down from the top of the column to the ground the lamp would stand on.
 		for (int down = 0; down < 6 && !WorkSites.isGround(level.getBlockState(cursor)); down++) {
 			cursor.move(0, -1, 0);
@@ -187,7 +187,7 @@ public final class Lamplighter {
 		if (!level.hasChunk(x >> 4, z >> 4) || !settlement.withinWalls(x, z) || Landscaper.keptOpen(settlement, x, z) || Landscaper.keptClear(settlement, x, z)) {
 			return null;
 		}
-		int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
+		int y = com.sunnatbek.villagerciv.mod.Heights.top(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
 		BlockPos foot = new BlockPos(x, y, z);
 		BlockState ground = level.getBlockState(foot);
 		if (!WorkSites.isGround(ground) || !ground.getFluidState().isEmpty()) {

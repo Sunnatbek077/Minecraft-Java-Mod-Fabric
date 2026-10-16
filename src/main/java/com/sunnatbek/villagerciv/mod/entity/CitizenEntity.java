@@ -130,6 +130,7 @@ public class CitizenEntity extends PathfinderMob {
 		goalSelector.addGoal(2, new GoHomeGoal(this));
 		goalSelector.addGoal(2, new StayInSettlementGoal(this));
 		goalSelector.addGoal(3, new WorkGoal(this));
+		goalSelector.addGoal(3, new CastleGoal(this));
 		goalSelector.addGoal(3, new BuildGoal(this));
 		goalSelector.addGoal(3, new LampGoal(this, true));
 		goalSelector.addGoal(3, new WorkshopGoal(this));
@@ -409,9 +410,14 @@ public class CitizenEntity extends PathfinderMob {
 		// Being walled in is never the citizen's doing: a tree grew, or a builder set a block,
 		// where it stood. It climbs out on top instead of dying there.
 		if (source.is(DamageTypes.IN_WALL)) {
-			int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, getBlockX(), getBlockZ());
+			// Up to the first room to stand: under a castle's platform that is still down here, not on its roof.
+			net.minecraft.core.BlockPos.MutableBlockPos feet = blockPosition().mutable();
+			while (feet.getY() < level.getMaxY() - 2 && (!level.getBlockState(feet).getCollisionShape(level, feet).isEmpty()
+					|| !level.getBlockState(feet.above()).getCollisionShape(level, feet.above()).isEmpty())) {
+				feet.move(0, 1, 0);
+			}
 			getNavigation().stop();
-			teleportTo(getBlockX() + 0.5, top, getBlockZ() + 0.5);
+			teleportTo(getBlockX() + 0.5, feet.getY(), getBlockZ() + 0.5);
 			return false;
 		}
 		// A guard's bolt that goes astray does not wound its own people.

@@ -38,6 +38,19 @@ final class TownCenterBlock extends Block {
 			}
 			return InteractionResult.SUCCESS;
 		}
+		if (stack.is(ModContent.CASTLE_CHARTER)) {
+			if (player instanceof ServerPlayer serverPlayer && level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+				EmbodimentController embodiment = VillagerCivMod.embodiment();
+				Settlement settlement = embodiment == null ? null : embodiment.settlementAt(pos);
+				if (settlement == null) {
+					return InteractionResult.PASS;
+				}
+				if (embodiment.castles().propose(serverLevel, serverPlayer, settlement)) {
+					stack.consume(1, player);
+				}
+			}
+			return InteractionResult.SUCCESS;
+		}
 		if (ModContent.isCharter(stack)) {
 			if (player instanceof ServerPlayer serverPlayer) {
 				EmbodimentController embodiment = VillagerCivMod.embodiment();

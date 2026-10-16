@@ -128,7 +128,7 @@ public final class WorkSites {
 		if (!level.hasChunk(site.x() >> 4, site.z() >> 4)) {
 			return false;
 		}
-		site.setY(level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, site.x(), site.z()) - 1);
+		site.setY(com.sunnatbek.villagerciv.mod.Heights.top(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, site.x(), site.z()) - 1);
 		return true;
 	}
 

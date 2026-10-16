@@ -197,7 +197,7 @@ public final class Landscaper {
 					why = "water or lava lying on it";
 				} else if (target < surface) {
 					why = "cut";
-					for (int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z); y > target; y--) {
+					for (int y = com.sunnatbek.villagerciv.mod.Heights.top(level, Heightmap.Types.MOTION_BLOCKING, x, z); y > target; y--) {
 						BlockState state = level.getBlockState(cursor.set(x, y, z));
 						if (!state.isAir() && !state.typeHolder().is(BlockTags.LOGS) && !WorkSites.isNatural(state) && !Lamplighter.isLampPart(state)
 								&& !state.is(Blocks.DIRT_PATH)) {
@@ -309,7 +309,7 @@ public final class Landscaper {
 		if (target == surface) {
 			// Level ground with water or lava run out over it from a spring: that is taken off.
 			if (awash(level, settlement, x, z)) {
-				drainPool(level, settlement, new BlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1, z));
+				drainPool(level, settlement, new BlockPos(x, com.sunnatbek.villagerciv.mod.Heights.top(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1, z));
 			}
 			return 0;
 		}
@@ -317,7 +317,7 @@ public final class Landscaper {
 		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
 		int rock = 0;
 		if (target < surface) {
-			int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
+			int top = com.sunnatbek.villagerciv.mod.Heights.top(level, Heightmap.Types.MOTION_BLOCKING, x, z);
 			for (int y = top; y > target; y--) {
 				BlockState state = level.getBlockState(cursor.set(x, y, z));
 				if (state.isAir()) {
@@ -394,7 +394,7 @@ public final class Landscaper {
 	 * {@link #NONE} if the column is water or has something built on it.
 	 */
 	private static int surface(ServerLevel level, Settlement settlement, int x, int z) {
-		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1, z);
+		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos(x, com.sunnatbek.villagerciv.mod.Heights.top(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1, z);
 		// A pond, a flooded pit or a pool of lava on a walled settlement's ground is a hollow like
 		// any other, and is filled: its ground is its bed. That goes for all the ground it keeps
 		// level, the strip outside the wall too: water is not left standing against the wall's
@@ -431,7 +431,7 @@ public final class Landscaper {
 		if (!managed(settlement, x, z)) {
 			return target;
 		}
-		BlockPos top = new BlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1, z);
+		BlockPos top = new BlockPos(x, com.sunnatbek.villagerciv.mod.Heights.top(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1, z);
 		return level.getFluidState(top).isEmpty() ? target : Math.max(target, target(settlement, x, z, settlement.grade()));
 	}
 
@@ -478,7 +478,7 @@ public final class Landscaper {
 
 	/** Whether water or lava stands or runs on top of this column of ground the settlement keeps level. */
 	private static boolean awash(ServerLevel level, Settlement settlement, int x, int z) {
-		BlockPos top = new BlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1, z);
+		BlockPos top = new BlockPos(x, com.sunnatbek.villagerciv.mod.Heights.top(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1, z);
 		return level.getBlockState(top).getBlock() instanceof net.minecraft.world.level.block.LiquidBlock
 				&& settlement.wallPieces() > 0 && managed(settlement, x, z);
 	}

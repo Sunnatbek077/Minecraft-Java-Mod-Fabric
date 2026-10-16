@@ -306,7 +306,7 @@ final class FoundingHandler {
 			snapshot.set(index, 0, Surface.UNKNOWN);
 			return;
 		}
-		int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z) - 1;
+		int top = com.sunnatbek.villagerciv.mod.Heights.top(level, Heightmap.Types.MOTION_BLOCKING, x, z) - 1;
 		BlockState state = level.getBlockState(cursor.set(x, top, z));
 		// A street lamp is not a building: the ground it stands on is what counts.
 		for (int down = 0; down < 4 && Lamplighter.isLampPart(state); down++) {
@@ -315,7 +315,7 @@ final class FoundingHandler {
 		}
 		Surface surface = classify(state);
 		// Under a tree the ground level is what matters, not the canopy.
-		int height = surface == Surface.TREE ? level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1 : top;
+		int height = surface == Surface.TREE ? com.sunnatbek.villagerciv.mod.Heights.top(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1 : top;
 		snapshot.set(index, height, surface);
 	}
 

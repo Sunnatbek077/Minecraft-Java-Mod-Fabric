@@ -68,6 +68,7 @@ public final class Simulation {
 				Construction.reserveStoreLot(settlement, blueprints, state.ids());
 				SitePicker.ensureSites(settlement);
 				Construction.update(settlement, blueprints, state.ids());
+				Castle.update(settlement, Labor.CYCLE_TICKS);
 				Housing.assign(settlement);
 				Labor.update(settlement, context.gameTick(), daytime);
 			}

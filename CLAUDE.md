@@ -101,7 +101,7 @@ core/                 pure Java, no Minecraft on the classpath (compiler-enforce
     build/            blueprints, town plan, construction, walls
     persistence/      JSON save files
     content/          registry of data-driven definitions
-  src/main/resources/villagerciv/blueprints/   66 JSON files + index.json
+  src/main/resources/villagerciv/blueprints/   105 JSON files + index.json
   src/test/java/...   JUnit 6; harness/HeadlessSimulation runs the sim without the game
 src/main/java/com/sunnatbek/villagerciv/
     mod/              Fabric side: hooks, world edits, items, commands
@@ -166,6 +166,21 @@ server tick ─► VillagerCivMod.tick ─► Simulation.tick ─► SimulationS
    A charter given too early is kept (`Settlement.plannedShape`) and used by itself when the town
    is ready (`FoundingHandler.growOnKeptCharter`). When a newer ring is complete the older one is
    condemned and demolished, and its guards move to the new wall (`Defense.outgrowFirstWall`).
+
+### The castle (stage 4)
+
+`castle_charter`, used on or thrown onto the Town Center of an octagonal City whose great wall is
+done, begins a castle (`sim/Castle`: `mayBegin`, `begin`, `built`, 7 game days, a brigade of 24
+builders with `Labor.CASTLE` as their site, 1 stone per 10 blocks while the store can spare it).
+`mod/CastleWorks` places it: invisible light blocks every 5 at grade+3, pillars with spiral stairs
+on every great tower, a 3-thick stone platform 18 above the tallest building, then the design in
+`src/main/resources/villagerciv/castle/octagon_castle.dat` (made from CastleForge's
+`castle.schem` by `tools/CastleConvert.java`: only the castle above its plateau, 2.7 M blocks,
+353 layers). Order: bottom to top, round the compass in a layer; loaded chunks are caught up
+1 500 blocks a tick. `data/minecraft/dimension_type/overworld.json` raises the world to y 607.
+`Heights.top` replaces the heightmap everywhere the town looks for its ground (under the platform,
+not on the castle). `CastleGoal` teleports the brigade up to the newest course by day and down at
+night. Citizens are not hurt when walled in: they are lifted to the first free space above.
 
 ## Core packages
 
@@ -253,7 +268,8 @@ so armour and held items show), `PanelScreen` base and four screens (`RecruitOff
 
 **Items** (`ModContent`): `recruitment_scroll`, `founding_charter`, `blank_plan`,
 `agrarian_plan`, `industry_plan`, `military_plan`, `surveyors_seal`, `expansion_charter`,
-`pentagon_charter`, `hexagon_charter`, `octagon_charter`, `round_charter`, `grand_charter`.
+`pentagon_charter`, `hexagon_charter`, `octagon_charter`, `round_charter`, `grand_charter`,
+`castle_charter` ("Build Castle for Octagonal Place").
 Block: `town_center`. Entity: `citizen`.
 
 **A new item needs** all of: a field in `ModContent`, `assets/villagerciv/items/<id>.json`,
@@ -288,13 +304,17 @@ air" (`Blueprint.CLEAR`). `late` lists palette keys placed last (doors, beds, la
 `storage` gives stockpile capacity. Designs are drawn with the door facing north and turned to
 face their street.
 
-Never write a blueprint by hand. Use or extend a generator and run it from the repo root:
+Never write a blueprint by hand. A design may be at most 13x13 (`ConstructionTest`). Check block names against
+`assets/minecraft/blockstates/` in the `minecraft-clientOnly` jar under `.gradle/loom-cache` before adding them.
+Use or extend a generator and run it from the repo root:
 
 | Generator | Produces |
 | --- | --- |
 | `gen_houses.py` | hut-era houses (10) |
 | `gen_fine_houses.py` | timber-framed village houses (10, `min_stage` 2) |
 | `gen_unique_houses.py` | 20 unique houses; class `G` is the grid toolkit (`put`, `box`, `body`, `door`, `beds`, `roof_z`, `roof_x`, `hip`, `result`, `check`) and the best starting point for new designs |
+| `gen_more_houses.py` | 20 more houses, each in woods and stones no other design uses (bamboo, mangrove, nether woods, pale oak, blackstone, tuff, quartz, prismarine, end stone, snow, giant mushroom...); reuses the toolkit of `gen_unique_houses.py` |
+| `gen_varied_houses.py` | 20 odd-shaped houses: lighthouse, windmill, yurt, hill house, upturned boat, obsidian tower, domed house, and houses of pumpkin, honeycomb, amethyst, dripstone, resin, ice, thatch, copper, glazed tile, concrete |
 | `gen_store.py` | `storehouse`, `great_store_0..3` |
 | `gen_workshops.py` | `smithy`, `masons_yard`, `market` |
 | `gen_stage2.py` | `well`, `tavern`, `chapel`, `fountain`, `stone_gate`, `stone_tower` |

@@ -28,7 +28,6 @@
 	"message.villagerciv.expand.busy": "The land is being surveyed already.",
 	"message.villagerciv.expand.done": "%s: \"It is settled. We build out through the gates, and raise a second wall, of stone, round it all.\"",
 	"message.villagerciv.expand.done.open": "%s: \"It is settled. The land beyond is ours to build on.\"",
-
 	"policy.villagerciv.none": "No plan",
 	"policy.villagerciv.agrarian": "Agrarian",
 	"policy.villagerciv.industry": "Industry",
@@ -37,19 +36,16 @@
 	"policy.villagerciv.agrarian.hint": "Better farming and more children.",
 	"policy.villagerciv.industry.hint": "Better mining and felling. On its own, less room is kept for growth.",
 	"policy.villagerciv.military.hint": "A stronger General, more guards, and a wall raised before it is needed. On its own, fewer children.",
-
 	"message.villagerciv.plan.accepted": "%s: \"We take up the %s plan.\"",
 	"message.villagerciv.plan.same": "%s: \"We follow the %s plan already.\"",
 	"message.villagerciv.plan.doubt.agrarian": "%s: \"Mind, the land here is poor for farming. It will be slow.\"",
 	"message.villagerciv.plan.doubt.industry": "%s: \"Mind, there is little stone in sight here. It will be slow.\"",
-
 	"message.villagerciv.request.opened": "%s asks for %s %s, %s.",
 	"message.villagerciv.request.purpose.food": "to build up a reserve",
 	"message.villagerciv.request.purpose.building": "for a %s",
 	"message.villagerciv.request.fulfilled": "%s thanks you: the %s it asked for is all there.",
 	"message.villagerciv.request.expired": "%s's request for %s has lapsed. They carry on without it.",
 	"message.villagerciv.request.no_longer_needed": "%s no longer needs the %s it asked for: they managed.",
-
 	"screen.villagerciv.settlement.plan": "Plans: %s",
 	"screen.villagerciv.settlement.no_plan": "No Development Plan",
 	"screen.villagerciv.settlement.defence": "Defence",
@@ -67,19 +63,16 @@
 	"screen.villagerciv.settlement.status.critical": "Almost none left!",
 	"screen.villagerciv.settlement.reputation": "Standing: %s",
 	"block.villagerciv.town_center": "Town Center",
-
 	"stage.villagerciv.founding_camp": "Founding Camp",
 	"stage.villagerciv.settlement": "Settlement",
 	"stage.villagerciv.village": "Village",
 	"stage.villagerciv.town": "Town",
 	"stage.villagerciv.city": "City",
-
 	"commodity.villagerciv.food": "Food",
 	"commodity.villagerciv.wood": "Wood",
 	"commodity.villagerciv.stone": "Stone",
 	"commodity.villagerciv.ore": "Ore",
 	"commodity.villagerciv.tools": "Tools",
-
 	"message.villagerciv.found.no_expedition": "You have no expedition to settle. Recruit villagers first.",
 	"message.villagerciv.found.too_few": "A settlement needs at least %s founders.",
 	"message.villagerciv.found.not_travelling": "Your expedition must be travelling with you.",
@@ -91,7 +84,6 @@
 	"message.villagerciv.found.expired": "That survey is out of date. Use the charter again.",
 	"message.villagerciv.found.founded": "%s has been founded! Your people will take it from here.",
 	"message.villagerciv.found.patron": "You are its Founding Patron.",
-
 	"screen.villagerciv.site.title": "Site Survey",
 	"screen.villagerciv.site.intro": "%s has looked over the land.",
 	"screen.villagerciv.site.good": "\"A good place. We can make a home here.\"",
@@ -113,7 +105,6 @@
 	"screen.villagerciv.site.level.none": "none",
 	"screen.villagerciv.site.confirm": "Settle here",
 	"screen.villagerciv.site.cancel": "Look elsewhere",
-
 	"screen.villagerciv.settlement.summary": "%s · %s citizens · %s beds",
 	"screen.villagerciv.settlement.patron": "You are the Founding Patron.",
 	"screen.villagerciv.settlement.stock": "%s %s",
@@ -178,7 +169,6 @@
 	"message.villagerciv.settlement.contributed": "Gave %s %s to %s (now %s).",
 	"screen.villagerciv.settlement.land": "%s chunks · site %s · morale %s",
 	"entity.villagerciv.citizen": "Citizen",
-
 	"role.villagerciv.leader": "Leader",
 	"role.villagerciv.general": "General",
 	"role.villagerciv.farmer": "Farmer",
@@ -199,7 +189,6 @@
 	"message.villagerciv.librarian.none": "%s has no enchantment to keep yet.",
 	"message.villagerciv.librarian.line": "%s keeps %s (%s emeralds)",
 	"message.villagerciv.librarian.total": "%s of %s enchantments are kept here.",
-
 	"message.villagerciv.recruit.joined": "%s joined your expedition as %s. (%s/%s)",
 	"message.villagerciv.recruit.settled": "%s has joined %s. (%s citizens)",
 	"message.villagerciv.settle.joined": "%s of your followers moved into %s. (%s citizens)",
@@ -221,7 +210,6 @@
 	"message.villagerciv.expedition.fed": "Food supply: %s meals (about %s days).",
 	"message.villagerciv.expedition.disbanded": "You send your expedition home. They settle back into village life.",
 	"message.villagerciv.citizen.left": "%s has lost faith in you and gone home.",
-
 	"screen.villagerciv.offer.title": "Recruitment Offer",
 	"screen.villagerciv.offer.profession": "Profession: %s",
 	"screen.villagerciv.offer.chance_label": "Chance to accept",
@@ -234,7 +222,6 @@
 	"screen.villagerciv.offer.size": "Expedition: %s/%s",
 	"screen.villagerciv.offer.confirm": "Offer the scroll",
 	"screen.villagerciv.offer.cancel": "Not now",
-
 	"screen.villagerciv.expedition.title": "Your Expedition",
 	"screen.villagerciv.expedition.following": "Travelling with you",
 	"screen.villagerciv.expedition.camped": "Camped, waiting for you",
@@ -245,5 +232,11 @@
 	"screen.villagerciv.expedition.feed_hint": "To feed the expedition, hold food and use it on any member (sneak to hand over the whole stack).",
 	"screen.villagerciv.expedition.disband": "Send everyone home",
 	"screen.villagerciv.expedition.disband_confirm": "Really disband? Click again",
-	"screen.villagerciv.expedition.done": "Done"
+	"screen.villagerciv.expedition.done": "Done",
+	"item.villagerciv.castle_charter": "Build Castle for Octagonal Place",
+	"message.villagerciv.castle.begun": "%s: \"The towers of our wall will carry it. The brigade goes up today: a stone ground above the roofs first, then the castle on it, all within seven days.\"",
+	"message.villagerciv.castle.not_ready": "%s: \"A castle wants a city of eight sides, with its great wall finished, to stand on.\"",
+	"message.villagerciv.castle.already": "%s: \"We are building one already, or have built it.\"",
+	"message.villagerciv.castle.too_low": "%s: \"The sky is too low here for what you ask.\" (The world is not tall enough: is the mod's data pack enabled?)",
+	"message.villagerciv.castle.finished": "%s: \"The castle stands, every stone of it.\""
 }

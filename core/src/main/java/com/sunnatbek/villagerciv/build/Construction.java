@@ -112,7 +112,7 @@ public final class Construction {
 			// plain houses, and the fine ones come when there is the wood and stone for them.
 			List<Blueprint> affordable = new java.util.ArrayList<>(ordinary(library, choice.category()));
 			affordable.removeIf(option -> !canAfford(settlement, option) || option.minStage() > settlement.stage().ordinal());
-			next = pickByBeds(leastBuilt(settlement, affordable), random);
+			next = pickAtRandom(leastBuilt(settlement, affordable), random);
 			others = affordable;
 		}
 		if (next == null || !canAfford(settlement, next)) {
@@ -412,8 +412,11 @@ public final class Construction {
 		}
 		List<Blueprint> others = new java.util.ArrayList<>(options);
 		others.removeIf(option -> option.width() >= tooBig.width() && option.depth() >= tooBig.depth());
-		others.sort(java.util.Comparator.comparingInt((Blueprint option) -> built.getOrDefault(option.id(), 0))
-				.thenComparingInt(option -> option.width() * option.depth()).thenComparing(Blueprint::id));
+		// The least built first, and among those any, by chance: shuffled, then sorted by that alone.
+		for (int i = others.size() - 1; i > 0; i--) {
+			java.util.Collections.swap(others, i, random.nextInt(i + 1));
+		}
+		others.sort(java.util.Comparator.comparingInt((Blueprint option) -> built.getOrDefault(option.id(), 0)));
 		for (Blueprint option : others) {
 			if (TownPlan.site(settlement, option, random) != null) {
 				return option;
@@ -446,26 +449,12 @@ public final class Construction {
 	}
 
 	/**
-	 * Any of these designs, by chance, but a house for six comes up three times as often as a
-	 * house for two: land is what a settlement runs out of, and it should not spend its few
-	 * lots mostly on the smallest houses.
+	 * Any of these designs, each as likely as the next. With every design kept to the fewest
+	 * built (see {@link #leastBuilt}), a settlement that can pay for all of them builds each
+	 * once, in an order nobody can foretell, before it builds any a second time.
 	 */
-	private static Blueprint pickByBeds(List<Blueprint> options, IdGenerator random) {
-		int total = 0;
-		for (Blueprint option : options) {
-			total += Math.max(1, option.beds());
-		}
-		if (total == 0) {
-			return null;
-		}
-		int drawn = random.nextInt(total);
-		for (Blueprint option : options) {
-			drawn -= Math.max(1, option.beds());
-			if (drawn < 0) {
-				return option;
-			}
-		}
-		return options.getLast();
+	private static Blueprint pickAtRandom(List<Blueprint> options, IdGenerator random) {
+		return options.isEmpty() ? null : options.get(random.nextInt(options.size()));
 	}
 
 	/** Any design of the kind that is wanted: variety is the point of having several. */

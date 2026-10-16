@@ -155,6 +155,10 @@ public final class VillagerCivMod implements ModInitializer {
 				controller.applyDeferredEdits(context);
 				return TaskResult.DONE;
 			});
+			simulation.scheduler().scheduleRecurring("castle", TaskPriority.EMBODIED, 1, 0, _ -> {
+				controller.castles().apply(server.overworld());
+				return TaskResult.DONE;
+			});
 			simulation.scheduler().scheduleRecurring("ground", TaskPriority.BACKGROUND, 20, 13, _ -> {
 				controller.scanGround();
 				return TaskResult.DONE;

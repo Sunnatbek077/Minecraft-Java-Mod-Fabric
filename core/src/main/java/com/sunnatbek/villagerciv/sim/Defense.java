@@ -174,7 +174,7 @@ public final class Defense {
 	 */
 	static int patrolsWanted(Settlement settlement, int onTheWall) {
 		int adults = settlement.size() - settlement.children();
-		int patrols = Math.max(0, Math.min(onTheWall, adults - onTheWall - adults / 2));
+		int patrols = Math.max(0, Math.min(onTheWall, adults / 2 - onTheWall));
 		// When the store is all but out of something, half the patrols put down their arms and
 		// help bring it in; the wall stays manned.
 		boolean dire = settlement.shortage(Commodity.FOOD) == 2 || settlement.shortage(Commodity.WOOD) == 2 || settlement.shortage(Commodity.STONE) == 2;

@@ -21,6 +21,8 @@ public final class Labor {
 	private static final int NO_PLACE = -1;
 	/** The "place" of a job that is done wherever it is needed. */
 	private static final int EVERYWHERE = 0;
+	/** The place of the builders of a castle: the castle as a whole, not a building on the list. */
+	public static final int CASTLE = -2;
 	private static final int MIN_WORKERS_FOR_LEVELLER = 6;
 	public static final int MASON_BUILD_PERCENT = 130;
 	/** How many mouths one farmer is counted on to feed: the floor under the number of farmers. */
@@ -49,7 +51,9 @@ public final class Labor {
 		int projects = settlement.activeBuildings().size();
 		// One builder more while there are lamps to put up: that is builders' work, with or without a building in hand.
 		int lamps = settlement.hasLampWork() ? 1 : 0;
-		open[JobType.BUILD.ordinal()] = projects * slots(settlement, JobType.BUILD) + lamps;
+		// A castle going up takes a brigade of its own.
+		int brigade = Castle.isBuilding(settlement) ? Castle.BRIGADE : 0;
+		open[JobType.BUILD.ordinal()] = projects * slots(settlement, JobType.BUILD) + lamps + brigade;
 
 		// Lapsed leases and jobs whose site is gone go back to the board.
 		int[] held = new int[JOBS.length];
@@ -214,6 +218,9 @@ public final class Labor {
 		// With a wall going up beside a house, each site gets at least one builder.
 		// A big place has other things to do besides: there a quarter build, however many crews are out.
 		int builders = Math.max(projects, workers >= 40 ? workers / 4 : stocked ? (workers + 1) / 2 : workers / 3);
+		if (Castle.isBuilding(settlement)) {
+			builders += Castle.BRIGADE;
+		}
 		// Levelling can wait while something is short: one keeps at it, the rest are called away.
 		// But hillsides are not left standing because the builders are using wood quickly: with
 		// that much ground to mend, only a store that is all but empty takes the levellers off it.
@@ -362,6 +369,9 @@ public final class Labor {
 			return library != null && library.blueprint().equals(Blueprint.LIBRARY) && library.stage() == Building.Stage.COMPLETE;
 		}
 		if (!job.hasWorkSite()) {
+			if (place == CASTLE) {
+				return Castle.isBuilding(settlement);
+			}
 			if (place == EVERYWHERE) {
 				return settlement.hasLampWork();
 			}
@@ -411,6 +421,10 @@ public final class Labor {
 			// With every building site manned, the one hand left over goes round with the lamps.
 			if (place == NO_PLACE && settlement.hasLampWork() && holders(settlement, job, EVERYWHERE) == 0) {
 				return EVERYWHERE;
+			}
+			// The rest go to the castle's brigade.
+			if (place == NO_PLACE && Castle.isBuilding(settlement) && holders(settlement, job, CASTLE) < Castle.BRIGADE) {
+				return CASTLE;
 			}
 			return place;
 		}

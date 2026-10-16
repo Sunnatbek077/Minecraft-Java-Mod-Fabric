@@ -44,6 +44,9 @@ public final class ModContent {
 	/** A city's leave to grow twice as far again, behind a great wall: the third stage of a patron's plans for it. */
 	public static final Item GRAND_CHARTER = item("grand_charter", 1);
 
+	/** The patron's word to raise a castle over a city of eight sides, on a platform carried by its towers. */
+	public static final Item CASTLE_CHARTER = item("castle_charter", 1);
+
 	/** Whether an item is one of the charters that enlarge a settlement. */
 	public static boolean isCharter(ItemStack stack) {
 		return stack.is(EXPANSION_CHARTER) || stack.is(PENTAGON_CHARTER) || stack.is(HEXAGON_CHARTER) || stack.is(OCTAGON_CHARTER)
@@ -138,6 +141,7 @@ public final class ModContent {
 							output.accept(OCTAGON_CHARTER);
 							output.accept(ROUND_CHARTER);
 							output.accept(GRAND_CHARTER);
+							output.accept(CASTLE_CHARTER);
 						})
 						.build());
 	}

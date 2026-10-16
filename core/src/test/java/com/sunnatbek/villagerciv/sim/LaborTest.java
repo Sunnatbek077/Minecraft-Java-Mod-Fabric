@@ -155,8 +155,18 @@ class LaborTest {
 		}
 		headless.runTicks(Labor.CYCLE_TICKS * 6);
 		assertEquals(0, settlement.shortage(Commodity.STONE));
-		long back = before.entrySet().stream().filter(e -> settlement.members().contains(e.getKey()) && e.getKey().job() == e.getValue()).count();
-		long still = before.keySet().stream().filter(c -> settlement.members().contains(c) && c.job() != JobType.BUILD && c.job() != null).count();
+		// Counted by trade, not by name: a farmer and a woodcutter who came back to each other's
+		// work have still put the settlement back the way it was.
+		java.util.Map<JobType, Long> was = new java.util.EnumMap<>(JobType.class);
+		java.util.Map<JobType, Long> is = new java.util.EnumMap<>(JobType.class);
+		for (var entry : before.entrySet()) {
+			if (settlement.members().contains(entry.getKey()) && entry.getKey().job() != null && entry.getKey().job() != JobType.BUILD) {
+				was.merge(entry.getValue(), 1L, Long::sum);
+				is.merge(entry.getKey().job(), 1L, Long::sum);
+			}
+		}
+		long still = was.values().stream().mapToLong(Long::longValue).sum();
+		long back = was.entrySet().stream().mapToLong(e -> Math.min(e.getValue(), is.getOrDefault(e.getKey(), 0L))).sum();
 		// Not every one: with the store full again the settlement wants fewer farmers than it had, and so on.
 		assertTrue(back * 10 >= still * 7, "most are back at their own work: " + back + " of " + still);
 		assertEquals(0, settlement.calledAway());

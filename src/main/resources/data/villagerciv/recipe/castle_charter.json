@@ -1,0 +1,18 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "misc",
+	"group": "villagerciv_castle_charter",
+	"key": {
+		"D": "minecraft:diamond_block",
+		"G": "minecraft:gold_block",
+		"C": "villagerciv:grand_charter"
+	},
+	"pattern": [
+		"DGD",
+		"GCG",
+		"DGD"
+	],
+	"result": {
+		"id": "villagerciv:castle_charter"
+	}
+}

@@ -90,6 +90,13 @@ final class SettlementCodec {
 		json.addProperty("wallPieces", settlement.wallPieces());
 		json.addProperty("expansion", settlement.expansion());
 		json.addProperty("heavyGroundWork", settlement.hasHeavyGroundWork());
+		if (settlement.hasCastle()) {
+			JsonObject castle = new JsonObject();
+			castle.addProperty("y", settlement.castleY());
+			castle.addProperty("blocks", settlement.castleBlocks());
+			castle.addProperty("worked", settlement.castleWorked());
+			json.add("castle", castle);
+		}
 		json.addProperty("wallShape", settlement.wallShape().name());
 		if (settlement.plannedShape() != null) {
 			json.addProperty("plannedShape", settlement.plannedShape().name());
@@ -267,6 +274,10 @@ final class SettlementCodec {
 							w.get("rotation").getAsInt(), w.get("sizeX").getAsInt(), w.get("sizeZ").getAsInt()));
 				}
 				settlement.setWallPlan(pieces, json.get("wallPieces").getAsInt());
+				if (json.has("castle")) {
+					JsonObject castle = json.getAsJsonObject("castle");
+					settlement.setCastle(castle.get("y").getAsInt(), castle.get("blocks").getAsInt(), castle.get("worked").getAsLong());
+				}
 				if (json.has("heavyGroundWork")) {
 					settlement.setHeavyGroundWork(json.get("heavyGroundWork").getAsBoolean());
 				}

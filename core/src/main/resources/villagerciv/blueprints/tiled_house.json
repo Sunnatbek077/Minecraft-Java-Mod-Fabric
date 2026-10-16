@@ -1,0 +1,103 @@
+{
+	"id": "tiled_house",
+	"name": "Tiled House",
+	"category": "housing",
+	"beds": 2,
+	"min_stage": 2,
+	"cost": {"wood": 200, "stone": 130},
+	"late": "DEFHIJNOPQ",
+	"palette": {
+		"A": "minecraft:cyan_terracotta",
+		"B": "minecraft:blue_glazed_terracotta[facing=north]",
+		"C": "minecraft:light_blue_glazed_terracotta[facing=north]",
+		"D": "minecraft:cyan_bed[facing=north,part=head]",
+		"E": "minecraft:cyan_bed[facing=north,part=foot]",
+		"F": "minecraft:chest[facing=south]",
+		"G": "minecraft:barrel[facing=up]",
+		"H": "minecraft:light_blue_carpet",
+		"I": "minecraft:decorated_pot[facing=south]",
+		"J": "minecraft:birch_door[half=lower,facing=north,hinge=left]",
+		"K": "minecraft:cyan_glazed_terracotta[facing=north]",
+		"L": "minecraft:light_blue_terracotta",
+		"M": "minecraft:glass_pane",
+		"N": "minecraft:potted_cornflower",
+		"O": "minecraft:birch_door[half=upper,facing=north,hinge=left]",
+		"P": "minecraft:potted_blue_orchid",
+		"Q": "minecraft:lantern[hanging=true]",
+		"R": "minecraft:dirt_path"
+	},
+	"layers": [
+		[
+			"         ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			"    R    ",
+			"    R    "
+		],
+		[
+			"         ",
+			" BCCCCCB ",
+			" CD.I.DC ",
+			" CEHHHEC ",
+			" C.....C ",
+			" CF...FC ",
+			" CG...KC ",
+			" BCCJCCB ",
+			"         ",
+			"         "
+		],
+		[
+			"         ",
+			" BLMLMLB ",
+			" L.....L ",
+			" M.....M ",
+			" L.....L ",
+			" M.....M ",
+			" LN...PL ",
+			" BLMOMLB ",
+			"         ",
+			"         "
+		],
+		[
+			"         ",
+			" BLLLLLB ",
+			" L.....L ",
+			" L.....L ",
+			" L..Q..L ",
+			" L.....L ",
+			" L.....L ",
+			" BLLLLLB ",
+			"         ",
+			"         "
+		],
+		[
+			"         ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			"         ",
+			"         "
+		],
+		[
+			"         ",
+			" A A A A ",
+			"         ",
+			" A     A ",
+			"         ",
+			" A     A ",
+			"         ",
+			" A A A A ",
+			"         ",
+			"         "
+		]
+	]
+}

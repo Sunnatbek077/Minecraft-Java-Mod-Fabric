@@ -1,0 +1,86 @@
+{
+	"id": "igloo",
+	"name": "Igloo",
+	"category": "housing",
+	"beds": 2,
+	"min_stage": 1,
+	"cost": {"wood": 190, "stone": 70},
+	"late": "CEFGHJK",
+	"palette": {
+		"A": "minecraft:snow_block",
+		"B": "minecraft:packed_ice",
+		"C": "minecraft:white_carpet",
+		"D": "minecraft:barrel[facing=up]",
+		"E": "minecraft:lantern[hanging=false]",
+		"F": "minecraft:white_bed[facing=north,part=head]",
+		"G": "minecraft:white_bed[facing=north,part=foot]",
+		"H": "minecraft:chest[facing=south]",
+		"I": "minecraft:crafting_table",
+		"J": "minecraft:spruce_door[half=lower,facing=north,hinge=left]",
+		"K": "minecraft:spruce_door[half=upper,facing=north,hinge=left]",
+		"L": "minecraft:smoker[facing=west]",
+		"M": "minecraft:dirt_path"
+	},
+	"layers": [
+		[
+			"         ",
+			"  AAAAA  ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			" AAAAAAA ",
+			"  AAAAA  ",
+			"    M    ",
+			"    M    "
+		],
+		[
+			"         ",
+			"  AAAAA  ",
+			" AAFIFAA ",
+			" ACGCGCA ",
+			" AD...LA ",
+			" ACHCHCA ",
+			" AAC.CAA ",
+			"  AAJAA  ",
+			"         ",
+			"         "
+		],
+		[
+			"         ",
+			"   ABA   ",
+			"  A...A  ",
+			" A.....A ",
+			" BE....B ",
+			" A.....A ",
+			"  A...A  ",
+			"   AKA   ",
+			"         ",
+			"         "
+		],
+		[
+			"         ",
+			"         ",
+			"  AAAAA  ",
+			"  AA.AA  ",
+			"  A...A  ",
+			"  AA.AA  ",
+			"  AAAAA  ",
+			"         ",
+			"         ",
+			"         "
+		],
+		[
+			"         ",
+			"         ",
+			"         ",
+			"   AAA   ",
+			"   AAA   ",
+			"   AAA   ",
+			"         ",
+			"         ",
+			"         ",
+			"         "
+		]
+	]
+}

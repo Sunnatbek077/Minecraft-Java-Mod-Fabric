@@ -171,7 +171,7 @@ final class PatrolGoal extends Goal {
 		}
 		if (--repathIn <= 0 && embodiment.takePathSlot()) {
 			repathIn = REPATH_INTERVAL_TICKS;
-			int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) Math.floor(goalX), (int) Math.floor(goalZ));
+			int y = com.sunnatbek.villagerciv.mod.Heights.top(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) Math.floor(goalX), (int) Math.floor(goalZ));
 			entity.getNavigation().moveTo(goalX, y, goalZ, 0.55);
 		}
 	}
